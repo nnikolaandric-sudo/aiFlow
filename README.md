@@ -7,7 +7,9 @@
 **The Mac file manager Finder should have shipped.**
 
 A fast, native macOS file browser with a built-in code editor, a Markdown
-reader, real Finder-compatible color tags, Spotlight search, archive tools, and
+reader, real Finder-compatible color tags, Spotlight search, archive tools,
+an AI organizer that renames and sorts files by content, secure share links
+sent straight from your Mac, and
 one-click "open in Terminal / VS Code / Cursor / Claude Code / Codex" — in one
 self-contained app that runs entirely on your Mac.
 
@@ -54,6 +56,12 @@ Discord, Check for Updates (GitHub Releases), or configured Secure Share (includ
 
 These are the headline reasons people switch. **None of them ship in Finder.**
 
+- **🤖 AI Organizer — rename & sort by content.** Select messy files, hit ✨
+  (or File → Organize with AI… ⌥⌘O), review the plan, apply. One ⌘Z undoes
+  the whole run. Free `:free` models available — see [AI features](#-ai-features--how-to-use).
+- **🔗 Share a document straight from your Mac.** Right-click any file →
+  Share → Create Secure Link → send the HTTPS link. Expiration, passwords,
+  preview/download permissions included — see [Share from your Mac](#-share-a-document-from-your-mac).
 - **📝 A real code editor, built in.** Double-click any text or code file and it
   opens in a proper editor — tabs, syntax highlighting for dozens of languages, a
   fuzzy **command palette (⌘⇧P)**, Sublime keybindings, and a **Sublime-style
@@ -81,6 +89,56 @@ These are the headline reasons people switch. **None of them ship in Finder.**
 
 > If you've ever opened Finder, then Sublime, then Obsidian, then Terminal just
 > to deal with one folder — aiFlow is that whole stack in a single window.
+
+---
+
+## 🤖 AI features — how to use
+
+aiFlow's AI runs through [OpenRouter](https://openrouter.ai) with **your own
+key** — no aiFlow account, no subscription. Models ending in `:free` cost
+nothing. Everything is **off until you paste a key**, and every AI run shows
+you a plan to review **before anything moves**.
+
+**1. One-time setup (2 minutes)**
+
+1. Get a free key at [openrouter.ai/keys](https://openrouter.ai/keys).
+2. In aiFlow: **Settings → AI Organizer → paste the key** (stored in the
+   macOS Keychain, never in plain files).
+3. Pick a model — tap a suggested one, or paste any OpenRouter slug.
+   Optional: set a **monthly spend cap**, **reply budget** and **files per
+   request**; add **fallback keys** if you want.
+4. Done. Without a key, all AI buttons explain themselves instead of failing.
+
+**2. AI Organizer — tidy any folder**
+
+1. Open a messy folder (Downloads, Desktop, an export dump) or select files.
+2. Click the **✨ toolbar button** or **File → Organize with AI… (⌥⌘O)**.
+3. Hit **Analyze** — the AI suggests better names (by content, not just
+   filenames) and subfolders.
+4. **Review the plan** (accept / change per file), then **Apply**.
+5. Changed your mind? One **⌘Z undoes the whole run**.
+
+**3. Folder Rules — auto-sort new files, with optional AI**
+
+1. Right-click any folder → **Set Up Folder Rules…**.
+2. Write the rule in plain words ("invoices go to Invoices", "zips older
+   than 30 days to Trash") or build it step by step.
+3. Rules with free phrasing or *"AI thinks it is …"* conditions need the AI
+   switch: **Settings ▸ Folder Rules → AI on** (off by default, daily limit
+   applies and spending counts toward the AI Organizer monthly cap).
+4. Watched folders sort new arrivals automatically; every move is logged
+   with **Undo**, and rules never permanently delete — only Trash.
+
+**4. Mail Inbox — file attachments with AI**
+
+- Needs the same OpenRouter key (**Settings ▸ AI Organizer**).
+- Only attachment names and extracted text go to the model — mail bodies
+  and addresses never leave your Mac. Files move only for mails still
+  waiting in the Inbox, after your review.
+
+> Privacy: filenames of the files you choose go to OpenRouter with your key
+> when you press Analyze/Apply. Browsing, search and file operations never
+> touch the network.
 
 ---
 
@@ -211,11 +269,32 @@ These are the headline reasons people switch. **None of them ship in Finder.**
 
 ---
 
-## Secure internet sharing
+## 🔗 Share a document from your Mac
 
-Right-click one file → **Share → Create Secure Link…**. aiFlow automatically creates a temporary HTTPS link through Cloudflare while this Mac is awake and online. Includes expiration, optional passwords, preview/download permissions, session download limits, activity and revocation. **Shared Files** is available in the sidebar and File menu. An optional embedded login agent keeps sharing after the app quits.
+Send any file on your Mac as a secure HTTPS link — no cloud upload, no
+account, no server setup. The file stays on your Mac and is served through
+a temporary Cloudflare tunnel while this Mac is awake and online.
 
-No account or server setup is needed; the Cloudflare client is bundled. After the tunnel restarts, copy and send the new link. File bytes pass through Cloudflare; this is transport encryption, not E2EE. Quick Tunnels have no uptime guarantee. The included managed server remains an optional alternative. [Setup, deployment, privacy and verification](docs/secure-sharing.md).
+**How to share in seconds**
+
+1. Right-click one file → **Share → Create Secure Link…**.
+2. Set **expiration**, an optional **password**, **preview vs. download**
+   permission and a **session download limit**.
+3. Click Create, **copy the link** and send it — the recipient opens it in
+   any browser, no app needed.
+4. Manage everything under **Shared Files** (sidebar + File menu): see
+   activity, **revoke** a link anytime, or let it expire on its own.
+
+**Good to know**
+
+- Works while this Mac is **awake and online** — after a tunnel restart,
+  just copy and send the fresh link.
+- An optional embedded **login agent** keeps sharing alive even after the
+  app quits (macOS may ask for Login Items approval once).
+- Transport-encrypted via Cloudflare (not end-to-end); Quick Tunnels carry
+  no uptime guarantee. A self-hosted managed server remains an optional
+  alternative.
+- [Setup, deployment, privacy and verification](docs/secure-sharing.md).
 
 ## Security & privacy
 
