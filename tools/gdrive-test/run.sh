@@ -25,11 +25,11 @@ swiftc -swift-version 5 -Onone -g \
     -sdk "$SDK" \
     -module-cache-path build/local/ModuleCache \
     -o "$OUT/gdrive-test" \
-    FinderFlow/GoogleDriveAccount.swift \
-    FinderFlow/GoogleDriveAPI.swift \
-    FinderFlow/GoogleDriveOAuth.swift \
-    FinderFlow/GoogleDriveSyncService.swift \
-    FinderFlow/GoogleDriveBadge.swift \
+    aiFlow/GoogleDriveAccount.swift \
+    aiFlow/GoogleDriveAPI.swift \
+    aiFlow/GoogleDriveOAuth.swift \
+    aiFlow/GoogleDriveSyncService.swift \
+    aiFlow/GoogleDriveBadge.swift \
     tools/gdrive-test/main.swift \
     -framework AppKit -framework SwiftUI -framework Network -framework Security
 

@@ -17,7 +17,7 @@ cd "$(dirname "$0")"
 APP_NAME="FinderFlow"
 SCHEME="FinderFlow"
 CONFIG="Release"
-PROJECT="FinderFlow.xcodeproj"
+PROJECT="aiFlow.xcodeproj"
 
 DD="build/dd-release"          # derived data
 PRODUCTS="$DD/Build/Products/$CONFIG"

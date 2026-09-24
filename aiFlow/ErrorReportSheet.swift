@@ -94,7 +94,7 @@ struct ErrorReportSheet: View {
         NSPasteboard.general.setString(diagnosticBlob, forType: .string)
         NotificationCenter.default.post(name: .ffExternalPasteboardWrite, object: nil)
         // Prefer GitHub Issues (public repo). Diagnostics are already on the clipboard to paste.
-        if let issues = URL(string: "https://github.com/Gtarafdar/FinderFlow/issues/new?title=Error%20report") {
+        if let issues = URL(string: "https://github.com/nnikolaandric-sudo/aiFlow/issues/new?title=Error%20report") {
             NSWorkspace.shared.open(issues)
         }
     }

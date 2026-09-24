@@ -1,10 +1,10 @@
-# FinderFlow secure internet sharing
+# aiFlow secure internet sharing
 
 ## Automatic Cloudflare links (default)
 
-Users need **no Cloudflare account, server, domain, enrollment code, Node.js, Docker, Homebrew or separate cloudflared installation**. FinderFlow bundles the official pinned Cloudflare client and serves the recipient page and file access API natively.
+Users need **no Cloudflare account, server, domain, enrollment code, Node.js, Docker, Homebrew or separate cloudflared installation**. aiFlow bundles the official pinned Cloudflare client and serves the recipient page and file access API natively.
 
-1. Open `build/local/FinderFlow.app` after building with `./build-local.sh --no-run`.
+1. Open `build/local/aiFlow.app` after building with `./build-local.sh --no-run`.
 2. Right-click one or more files/folders → **Share → Create Secure Link…** (or **Quick Link** for a 24h link with no dialog). Multiple items and folders are packed into a single `.zip` (download-only) — capped at 10 items, 1000 files inside and 500 MB total so the temporary tunnel isn't overloaded; larger selections get a clear error instead of a silent failure.
 3. Choose expiry, preview/download permissions, an optional password and download limit.
 4. Click **Create Link**, then **Copy Link**. A private snapshot is created and an HTTPS address under `trycloudflare.com` is assigned automatically.
@@ -14,7 +14,7 @@ Only explicitly shared snapshots are reachable. Opening the share window alone m
 
 **Temporary means temporary:** quitting the serving app/helper, restarting the tunnel, or disabling sharing invalidates the old hostname. On restart, active shares receive links using the new hostname; copy and send the new links from Shared Files. Expiry is an upper bound and does not keep a tunnel alive. A new hostname can also need time to become visible through the recipient's DNS provider.
 
-Keep the Mac awake and online. Closing the main window leaves FinderFlow running. Optional **Keep sharing after quitting FinderFlow** registers the bundled login helper; macOS may require approval in Login Items. Switching between app and helper can restart the tunnel and change its address. A transfer prevents idle sleep only while bytes are being sent; lid-close/intentional sleep is not prevented.
+Keep the Mac awake and online. Closing the main window leaves aiFlow running. Optional **Keep sharing after quitting aiFlow** registers the bundled login helper; macOS may require approval in Login Items. Switching between app and helper can restart the tunnel and change its address. A transfer prevents idle sleep only while bytes are being sent; lid-close/intentional sleep is not prevented.
 
 Cloudflare describes [Quick Tunnels](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/) as testing/development functionality without an uptime SLA, with a 200 in-flight-request limit. This option fulfills account-free temporary sharing; permanent links and guaranteed availability require a managed deployment. [Try Cloudflare](https://try.cloudflare.com/).
 
@@ -37,7 +37,7 @@ Cloudflare describes [Quick Tunnels](https://developers.cloudflare.com/cloudflar
 ./tools/quick-share-test/ui.sh            # isolated native share window, test-only secret store
 ./tools/share-test/run.sh                # legacy managed-backend regression suite
 ./build-local.sh --no-run
-codesign --verify --deep --strict build/local/FinderFlow.app
+codesign --verify --deep --strict build/local/aiFlow.app
 ```
 
 Tests require both `FF_SHARE_TEST_MODE=1` and an isolated `FF_SHARE_DIR` to redirect secrets away from login Keychain. These flags must not be set for normal use. The public harness can use an independently resolved public DNS answer when macOS returns ENOTFOUND; it keeps normal hostname/certificate verification enabled and reports that fallback. This fallback belongs only to the test harness and does not alter the Mac's DNS settings.

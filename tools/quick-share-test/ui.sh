@@ -6,7 +6,7 @@ CONTENTS="$PWD/build/quick-ui/FinderFlowQuickPreview.app/Contents"
 cat > "$CONTENTS/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundleExecutable</key><string>QuickPreview</string><key>CFBundleIdentifier</key><string>com.finderflow.quick-preview</string><key>CFBundleName</key><string>FinderFlowQuickPreview</string><key>CFBundlePackageType</key><string>APPL</string><key>NSHighResolutionCapable</key><true/></dict></plist>
 PLIST
-swiftc -swift-version 5 -Onone -target arm64-apple-macosx14.0 FinderFlow/SecureShareCore.swift FinderFlow/SecureShareRelay.swift FinderFlow/QuickShareServer.swift FinderFlow/QuickShareRuntime.swift FinderFlow/SecureShareUI.swift tools/quick-share-test/ui/main.swift -lsqlite3 -o "$CONTENTS/MacOS/QuickPreview"
+swiftc -swift-version 5 -Onone -target arm64-apple-macosx14.0 aiFlow/SecureShareCore.swift aiFlow/SecureShareRelay.swift aiFlow/QuickShareServer.swift aiFlow/QuickShareRuntime.swift aiFlow/SecureShareUI.swift tools/quick-share-test/ui/main.swift -lsqlite3 -o "$CONTENTS/MacOS/QuickPreview"
 codesign --force --sign - "${CONTENTS%/Contents}"
 FF_SHARE_DIR="$(mktemp -d -t finderflow-quick-ui)"
 export FF_SHARE_DIR FF_SHARE_TEST_MODE=1

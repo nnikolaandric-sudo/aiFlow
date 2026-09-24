@@ -1,7 +1,7 @@
 # PDFInspector — lokalno čitanje PDF-a za AI agente
 
 Port ideje [firecrawl/pdf-inspector](https://github.com/firecrawl/pdf-inspector)
-(MIT) u Swift/PDFKit — bez Rust/Python/Node runtime-a, jer je FinderFlow
+(MIT) u Swift/PDFKit — bez Rust/Python/Node runtime-a, jer je aiFlow
 self-contained app bez spoljnih zavisnosti.
 
 ## Zašto postoji
@@ -22,7 +22,7 @@ PDF stigne
 
 | Sloj | Fajl | Koristi |
 | ---- | ---- | ------- |
-| App (Jev + AI) | `FinderFlow/PDFInspector.swift` | `PDFInspector.processPDF(url:)` → `PDFInspectorResult` |
+| App (Jev + AI) | `aiFlow/PDFInspector.swift` | `PDFInspector.processPDF(url:)` → `PDFInspectorResult` |
 | AI prompt | `AIContentReader.describe` (u `AIOrganizerEngine.swift`) | `PDFInspector.describe(url:size:maxChars:)` → `(preview, details)` |
 | CLI za agente | `tools/pdf-inspect/main.swift` + `run.sh` | `pdf-inspect faktura.pdf --json` |
 

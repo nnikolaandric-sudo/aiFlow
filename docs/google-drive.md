@@ -1,7 +1,7 @@
-# Google Drive in FinderFlow (native, no Drive app)
+# Google Drive in aiFlow (native, no Drive app)
 
-FinderFlow talks to Google Drive directly over the Drive API v3. You do **not**
-need "Google Drive for Desktop" installed: FinderFlow keeps a local **mirror**
+aiFlow talks to Google Drive directly over the Drive API v3. You do **not**
+need "Google Drive for Desktop" installed: aiFlow keeps a local **mirror**
 folder per account and browses it like any other folder — double-click, Quick
 Look, editor, search, tags and archives all work, because these are real files
 on your disk.
@@ -14,7 +14,7 @@ open in the browser instead of showing raw JSON.
 
 ## One-time setup: your own OAuth client ID
 
-FinderFlow ships without an embedded Google client secret — you connect with a
+aiFlow ships without an embedded Google client secret — you connect with a
 client ID you create yourself, so your Drive access is tied to your own Google
 Cloud project and nobody else's.
 
@@ -26,11 +26,11 @@ Cloud project and nobody else's.
 4. **APIs & Services → Credentials → Create Credentials → OAuth client ID →
    Application type: Desktop app.**
 5. Copy the **Client ID** (`…apps.googleusercontent.com`) into
-   **FinderFlow → Settings → Google Drive → Google Client ID** and press *Save*.
+   **aiFlow → Settings → Google Drive → Google Client ID** and press *Save*.
    One client ID covers every account you connect.
 
 Then press **Connect Account**. Your browser opens Google's consent page;
-FinderFlow listens on a temporary `127.0.0.1` port for the callback (OAuth 2.0
+aiFlow listens on a temporary `127.0.0.1` port for the callback (OAuth 2.0
 loopback + PKCE, no client secret). Connect as many accounts as you like.
 
 **Scopes requested:** `drive` (read/write — needed to mirror and to upload),
@@ -57,9 +57,9 @@ Each synced item carries a hidden metadata **sidecar** next to it:
 | `Projects/`   | `Projects/.gdrive.json` |
 
 The sidecar holds the Drive file id, its modified time, md5/size and (for Google
-Docs) the `webViewLink`. It's how FinderFlow knows what's already synced, what
+Docs) the `webViewLink`. It's how aiFlow knows what's already synced, what
 changed, and what a file's original on Drive is. Sidecars are dot-prefixed, so
-they stay out of listings in both Finder and FinderFlow. (Mirrors created by
+they stay out of listings in both Finder and aiFlow. (Mirrors created by
 earlier builds used visible `Report.docx.gdrive.json` names; those are still
 read, and rewritten to the hidden form on the next sync.)
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# build-local.sh — Build + run aiFlow (FinderFlow codebase) locally WITHOUT Xcode.
+# build-local.sh — Build + run aiFlow locally WITHOUT Xcode.
 #
 # Uses only Command Line Tools: swiftc + iconutil + codesign (ad-hoc, or "FinderFlow Dev" if present).
 # No paid Apple Developer account needed. No notarization (local run only).
@@ -73,7 +73,7 @@ echo "==> Compiling Swift sources ($CONFIG, arm64, macOS $DEPLOYMENT_TARGET+)...
 # dir first and compile the stable copies.
 SNAPSHOT="$OUT/src-snapshot"
 rm -rf "$SNAPSHOT"; mkdir -p "$SNAPSHOT"
-cp FinderFlow/*.swift "$SNAPSHOT/"
+cp aiFlow/*.swift "$SNAPSHOT/"
 # shellcheck disable=SC2206
 SWIFT_SOURCES=("$SNAPSHOT"/*.swift)
 swiftc \
@@ -149,12 +149,12 @@ print("    Info.plist written")
 PYEOF
 
 echo "==> Copying resources (AceEditor)..."
-cp -R FinderFlow/AceEditor "$RESOURCES/AceEditor"
+cp -R aiFlow/AceEditor "$RESOURCES/AceEditor"
 
 echo "==> Building AppIcon.icns..."
 ICONSET="$OUT/AppIcon.iconset"
 rm -rf "$ICONSET"; mkdir -p "$ICONSET"
-ASSET="FinderFlow/Assets.xcassets/AppIcon.appiconset"
+ASSET="aiFlow/Assets.xcassets/AppIcon.appiconset"
 cp "$ASSET/icon_16.png"   "$ICONSET/icon_16x16.png"
 cp "$ASSET/icon_32.png"   "$ICONSET/icon_16x16@2x.png"
 cp "$ASSET/icon_32.png"   "$ICONSET/icon_32x32.png"
@@ -182,7 +182,7 @@ if security find-identity -p codesigning 2>/dev/null | grep -q '"FinderFlow Dev"
     SIGN_ID="FinderFlow Dev"
 fi
 echo "==> Signing (${SIGN_ID/#-/ad-hoc})..."
-codesign --force -s "$SIGN_ID" --entitlements FinderFlow/FinderFlow.entitlements "$APP"
+codesign --force -s "$SIGN_ID" --entitlements aiFlow/aiFlow.entitlements "$APP"
 
 echo "==> Verifying..."
 codesign -dv "$APP" 2>&1 | sed -n 1,5p  # ne head: SIGPIPE + pipefail prekida build

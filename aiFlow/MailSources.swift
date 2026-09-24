@@ -92,7 +92,7 @@ enum MailAppImporter {
 // MARK: Mail rule script
 
 enum MailRuleInstaller {
-    static let scriptName = "FinderFlowSave"
+    static let scriptName = "aiFlowSave"
 
     static var scriptURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -102,7 +102,7 @@ enum MailRuleInstaller {
 
     static var isInstalled: Bool { FileManager.default.fileExists(atPath: scriptURL.path) }
 
-    /// Same logic as tools/mail-rule/FinderFlowSave.applescript, with the
+    /// Same logic as tools/mail-rule/aiFlowSave.applescript, with the
     /// current Email folder baked in and the source written as UTF-8.
     static func scriptSource(inbox: URL) -> String {
         let inboxPath = inbox.path.hasSuffix("/") ? inbox.path : inbox.path + "/"
@@ -111,9 +111,9 @@ enum MailRuleInstaller {
             "\"" + s.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"") + "\""
         }
         return """
-        -- FinderFlowSave — installed by FinderFlow (Settings ▸ Mail Inbox).
+        -- aiFlowSave — installed by aiFlow (Settings ▸ Mail Inbox).
         -- Mail rule action "Run AppleScript": saves each message as .eml into
-        -- FinderFlow's Email/Inbox; FinderFlow files it on the next Sync.
+        -- aiFlow's Email/Inbox; aiFlow files it on the next Sync.
         using terms from application "Mail"
             on perform mail action with messages theMessages for rule theRule
                 set inboxPath to \(lit(inboxPath))
@@ -148,7 +148,7 @@ enum MailRuleInstaller {
     static func install() -> String? {
         MailFilingService.ensureEmailDirs()
         let fm = FileManager.default
-        let tmp = fm.temporaryDirectory.appendingPathComponent("FinderFlowSave-\(UUID().uuidString).applescript")
+        let tmp = fm.temporaryDirectory.appendingPathComponent("aiFlowSave-\(UUID().uuidString).applescript")
         defer { try? fm.removeItem(at: tmp) }
         do {
             try scriptSource(inbox: MailFilingService.inboxDir()).write(to: tmp, atomically: true, encoding: .utf8)

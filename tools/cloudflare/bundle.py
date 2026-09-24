@@ -44,4 +44,4 @@ shutil.copyfile(license_file, resources / 'Cloudflared-LICENSE.txt')
 (resources / 'Cloudflared-NOTICE.txt').write_text(
     f"cloudflared {manifest['version']}\nCopyright Cloudflare, Inc.\n"
     "https://github.com/cloudflare/cloudflared\nApache License 2.0; see Cloudflared-LICENSE.txt.\n"
-    "Bundled executable is re-signed as part of FinderFlow distribution.\n")
+    "Bundled executable is re-signed as part of aiFlow distribution.\n")

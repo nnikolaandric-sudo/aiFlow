@@ -9,7 +9,7 @@
 /* Begin PBXBuildFile section */
 		777777777777777777770010 /* QuickShareRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777777777777777777770009; };
 		777777777777777777770008 /* QuickShareServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777777777777777777770007; };
-		AAAAAAAAAAAAAAAAAAAA0020 /* FinderFlowApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0010 /* FinderFlowApp.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0020 /* aiFlowApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0010 /* aiFlowApp.swift */; };
 		AAAAAAAAAAAAAAAAAAAA0021 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0011 /* ContentView.swift */; };
 		AAAAAAAAAAAAAAAAAAAA0022 /* PathBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0012 /* PathBarView.swift */; };
 		AAAAAAAAAAAAAAAAAAAA0023 /* SearchScopeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0013 /* SearchScopeView.swift */; };
@@ -111,7 +111,7 @@
 		777777777777777777770009 /* QuickShareRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickShareRuntime.swift; sourceTree = "<group>"; };
 		777777777777777777770007 /* QuickShareServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickShareServer.swift; sourceTree = "<group>"; };
 		AAAAAAAAAAAAAAAAAAAA000F /* FinderFlow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FinderFlow.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		AAAAAAAAAAAAAAAAAAAA0010 /* FinderFlowApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderFlowApp.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0010 /* aiFlowApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = aiFlowApp.swift; sourceTree = "<group>"; };
 		AAAAAAAAAAAAAAAAAAAA0011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		AAAAAAAAAAAAAAAAAAAA0012 /* PathBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathBarView.swift; sourceTree = "<group>"; };
 		AAAAAAAAAAAAAAAAAAAA0013 /* SearchScopeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchScopeView.swift; sourceTree = "<group>"; };
@@ -121,10 +121,10 @@
 		AAAAAAAAAAAAAAAAAAAA001A /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		AAAAAAAAAAAAAAAAAAAA0017 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AAAAAAAAAAAAAAAAAAAA0018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		AAAAAAAAAAAAAAAAAAAA001B /* FinderFlow.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FinderFlow.entitlements; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA001B /* aiFlow.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = aiFlow.entitlements; sourceTree = "<group>"; };
 		AAAAAAAAAAAAAAAAAAAA0040 /* FinderSyncExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderSyncExtension.swift; sourceTree = "<group>"; };
 		AAAAAAAAAAAAAAAAAAAA0041 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		AAAAAAAAAAAAAAAAAAAA001C /* FinderFlowExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FinderFlowExtension.entitlements; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA001C /* aiFlowExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = aiFlowExtension.entitlements; sourceTree = "<group>"; };
 		AAAAAAAAAAAAAAAAAAAA0042 /* FinderFlowExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FinderFlowExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		AAAAAAAAAAAAAAAAAAAA0070 /* FinderSync.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FinderSync.framework; path = System/Library/Frameworks/FinderSync.framework; sourceTree = SDKROOT; };
 		BBBBBBBBBBBBBBBBBBBB0001 /* FileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileItem.swift; sourceTree = "<group>"; };
@@ -208,11 +208,11 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		AAAAAAAAAAAAAAAAAAAA000C /* FinderFlow */ = {
+		AAAAAAAAAAAAAAAAAAAA000C /* aiFlow */ = {
 			isa = PBXGroup;
 			children = (
-				AAAAAAAAAAAAAAAAAAAA000E /* FinderFlow */,
-				AAAAAAAAAAAAAAAAAAAA006F /* FinderFlowExtension */,
+				AAAAAAAAAAAAAAAAAAAA000E /* aiFlow */,
+				AAAAAAAAAAAAAAAAAAAA006F /* aiFlowExtension */,
 				AAAAAAAAAAAAAAAAAAAA0072 /* Frameworks */,
 				AAAAAAAAAAAAAAAAAAAA000D /* Products */,
 			);
@@ -227,10 +227,10 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
-		AAAAAAAAAAAAAAAAAAAA000E /* FinderFlow */ = {
+		AAAAAAAAAAAAAAAAAAAA000E /* aiFlow */ = {
 			isa = PBXGroup;
 			children = (
-				AAAAAAAAAAAAAAAAAAAA0010 /* FinderFlowApp.swift */,
+				AAAAAAAAAAAAAAAAAAAA0010 /* aiFlowApp.swift */,
 				777777777777777777770007 /* QuickShareServer.swift */,
 				777777777777777777770009 /* QuickShareRuntime.swift */,
 				777777777777777777770005 /* SecureShareUI.swift */,
@@ -245,7 +245,7 @@
 				AAAAAAAAAAAAAAAAAAAA001A /* SidebarView.swift */,
 				AAAAAAAAAAAAAAAAAAAA0017 /* Info.plist */,
 				AAAAAAAAAAAAAAAAAAAA0018 /* Assets.xcassets */,
-				AAAAAAAAAAAAAAAAAAAA001B /* FinderFlow.entitlements */,
+				AAAAAAAAAAAAAAAAAAAA001B /* aiFlow.entitlements */,
 				BBBBBBBBBBBBBBBBBBBB0001 /* FileItem.swift */,
 				BBBBBBBBBBBBBBBBBBBB0003 /* ListView.swift */,
 				BBBBBBBBBBBBBBBBBBBB0005 /* IconsView.swift */,
@@ -304,17 +304,17 @@
 				4444444444440001 /* PDFInspector.swift */,
 				DDDDDDDDDDDDDDDDDDDD0001 /* AceEditor */,
 			);
-			path = FinderFlow;
+			path = aiFlow;
 			sourceTree = "<group>";
 		};
-		AAAAAAAAAAAAAAAAAAAA006F /* FinderFlowExtension */ = {
+		AAAAAAAAAAAAAAAAAAAA006F /* aiFlowExtension */ = {
 			isa = PBXGroup;
 			children = (
 				AAAAAAAAAAAAAAAAAAAA0040 /* FinderSyncExtension.swift */,
 				AAAAAAAAAAAAAAAAAAAA0041 /* Info.plist */,
-				AAAAAAAAAAAAAAAAAAAA001C /* FinderFlowExtension.entitlements */,
+				AAAAAAAAAAAAAAAAAAAA001C /* aiFlowExtension.entitlements */,
 			);
-			path = FinderFlowExtension;
+			path = aiFlowExtension;
 			sourceTree = "<group>";
 		};
 		AAAAAAAAAAAAAAAAAAAA0072 /* Frameworks */ = {
@@ -383,7 +383,7 @@
 					};
 				};
 			};
-			buildConfigurationList = AAAAAAAAAAAAAAAAAAAA0003 /* Build configuration list for PBXProject "FinderFlow" */;
+			buildConfigurationList = AAAAAAAAAAAAAAAAAAAA0003 /* Build configuration list for PBXProject "aiFlow" */;
 			compatibilityVersion = "Xcode 15.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -427,7 +427,7 @@
             buildActionMask = 2147483647;
             files = ();
             alwaysOutOfDate = 1;
-            inputPaths = ("$(SRCROOT)/FinderFlow/QuickShareServer.swift", "$(SRCROOT)/FinderFlow/QuickShareRuntime.swift", "$(SRCROOT)/tools/cloudflare/bundle.py", "$(SRCROOT)/tools/cloudflare/manifest.json", "$(SRCROOT)/share-server/public/index.html", "$(SRCROOT)/share-server/public/app.js", "$(SRCROOT)/share-server/public/style.css", "$(SRCROOT)/FinderFlow/SecureShareCore.swift", "$(SRCROOT)/FinderFlow/SecureShareRelay.swift", "$(SRCROOT)/FinderFlowShareAgent/main.swift", "$(SRCROOT)/FinderFlowShareAgent/com.finderflow.share-agent.plist", "$(SRCROOT)/tools/share-test/build-agent.sh");
+            inputPaths = ("$(SRCROOT)/aiFlow/QuickShareServer.swift", "$(SRCROOT)/aiFlow/QuickShareRuntime.swift", "$(SRCROOT)/tools/cloudflare/bundle.py", "$(SRCROOT)/tools/cloudflare/manifest.json", "$(SRCROOT)/share-server/public/index.html", "$(SRCROOT)/share-server/public/app.js", "$(SRCROOT)/share-server/public/style.css", "$(SRCROOT)/aiFlow/SecureShareCore.swift", "$(SRCROOT)/aiFlow/SecureShareRelay.swift", "$(SRCROOT)/aiFlowShareAgent/main.swift", "$(SRCROOT)/aiFlowShareAgent/com.finderflow.share-agent.plist", "$(SRCROOT)/tools/share-test/build-agent.sh");
             outputPaths = ("$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/MacOS/FinderFlowShareAgent", "$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Library/LaunchAgents/com.finderflow.share-agent.plist");
             name = "Build Share Agent";
             runOnlyForDeploymentPostprocessing = 0;
@@ -441,7 +441,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				AAAAAAAAAAAAAAAAAAAA0020 /* FinderFlowApp.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0020 /* aiFlowApp.swift in Sources */,
 				777777777777777777770008 /* QuickShareServer.swift in Sources */,
 				777777777777777777770010 /* QuickShareRuntime.swift in Sources */,
 				777777777777777777770006 /* SecureShareUI.swift in Sources */,
@@ -629,14 +629,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = FinderFlow/FinderFlow.entitlements;
+				CODE_SIGN_ENTITLEMENTS = aiFlow/aiFlow.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = FinderFlow/Info.plist;
+				INFOPLIST_FILE = aiFlow/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -654,14 +654,14 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = FinderFlow/FinderFlow.entitlements;
+				CODE_SIGN_ENTITLEMENTS = aiFlow/aiFlow.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = FinderFlow/Info.plist;
+				INFOPLIST_FILE = aiFlow/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -677,12 +677,12 @@
 		AAAAAAAAAAAAAAAAAAAA0032 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = FinderFlowExtension/FinderFlowExtension.entitlements;
+				CODE_SIGN_ENTITLEMENTS = aiFlowExtension/aiFlowExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = FinderFlowExtension/Info.plist;
+				INFOPLIST_FILE = aiFlowExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -700,12 +700,12 @@
 		AAAAAAAAAAAAAAAAAAAA0033 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = FinderFlowExtension/FinderFlowExtension.entitlements;
+				CODE_SIGN_ENTITLEMENTS = aiFlowExtension/aiFlowExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = FinderFlowExtension/Info.plist;
+				INFOPLIST_FILE = aiFlowExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -723,7 +723,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		AAAAAAAAAAAAAAAAAAAA0003 /* Build configuration list for PBXProject "FinderFlow" */ = {
+		AAAAAAAAAAAAAAAAAAAA0003 /* Build configuration list for PBXProject "aiFlow" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AAAAAAAAAAAAAAAAAAAA0004 /* Debug */,

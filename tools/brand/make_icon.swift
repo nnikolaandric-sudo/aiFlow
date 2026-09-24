@@ -2,7 +2,7 @@
 //
 //   swift tools/brand/make_icon.swift <out-dir>
 //
-// Writes icon_1024.png … icon_16.png for FinderFlow/Assets.xcassets/AppIcon.appiconset
+// Writes icon_1024.png … icon_16.png for aiFlow/Assets.xcassets/AppIcon.appiconset
 // and brand-mark.png (512) for the site. Design: macOS squircle on the icon
 // grid, indigo → violet → cyan diagonal gradient, three white "flow" ribbons
 // sweeping left to right (the files moving where they belong) and a four-point

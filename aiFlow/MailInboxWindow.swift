@@ -95,7 +95,7 @@ struct MailInboxSettingsSection: View {
                         .controlSize(.small)
                 }
             }
-            Text(ruleStatus ?? "Saves incoming mail from any Mail.app account into the Email folder's Inbox. After installing: Mail ▸ Settings ▸ Rules ▸ Add Rule, pick your condition (start narrow, e.g. From contains @firma.ba), action “Run AppleScript” ▸ FinderFlowSave. Existing mail: select it ▸ Message ▸ Apply Rules.")
+            Text(ruleStatus ?? "Saves incoming mail from any Mail.app account into the Email folder's Inbox. After installing: Mail ▸ Settings ▸ Rules ▸ Add Rule, pick your condition (start narrow, e.g. From contains @firma.ba), action “Run AppleScript” ▸ aiFlowSave. Existing mail: select it ▸ Message ▸ Apply Rules.")
                 .font(.caption).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             LabeledContent("Automation rules") {
@@ -123,7 +123,7 @@ struct MailInboxSettingsSection: View {
         // The rule only drops files; auto-sync is what files them.
         autoSync = true
         MailInboxWatcher.shared.refresh()
-        ruleStatus = "Installed FinderFlowSave into Mail's scripts and turned on auto-sync. Restart Mail, then Mail ▸ Settings ▸ Rules ▸ Add Rule ▸ action “Run AppleScript” ▸ FinderFlowSave. If you change the Email folder, press Reinstall."
+        ruleStatus = "Installed aiFlowSave into Mail's scripts and turned on auto-sync. Restart Mail, then Mail ▸ Settings ▸ Rules ▸ Add Rule ▸ action “Run AppleScript” ▸ aiFlowSave. If you change the Email folder, press Reinstall."
     }
 
     private func chooseRoot() {

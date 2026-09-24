@@ -4,7 +4,7 @@
 // Brzo čitanje PDF-a lokalno na Mac-u, bez mreže i bez OCR servisa:
 // klasifikacija (text/scanned/mixed) + čist Markdown + JSON za pipe-ove.
 // Port ideje firecrawl/pdf-inspector (MIT) u Swift/PDFKit — deli kod sa
-// FinderFlow/PDFInspector.swift pa se ponašaju identično.
+// aiFlow/PDFInspector.swift pa se ponašaju identično.
 //
 // Build (bez Xcode-a, samo Command Line Tools):
 //   ./tools/pdf-inspect/run.sh dokument.pdf --json
@@ -25,7 +25,7 @@ import Vision
 // MARK: - Ponovljene jezgre iz PDFInspector.swift (CLI je standalone binary)
 
 // NOTE: CLI namerno NE uvozi celu aplikaciju — kopira minimum iz
-// FinderFlow/PDFInspector.swift da ostane jedan fajl za `swiftc`.
+// aiFlow/PDFInspector.swift da ostane jedan fajl za `swiftc`.
 // Ako menjaš logiku, promeni na OBA mesta (app + ovaj fajl).
 
 enum PIType: String, Codable {

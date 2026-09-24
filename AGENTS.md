@@ -5,7 +5,7 @@
 Ne izmišljaj čitanje PDF-a i ne šalji PDF-ove na spoljne OCR servise.
 Koristi lokalni **PDFInspector** (port ideje `firecrawl/pdf-inspector`):
 
-- U app-u (Swift): `FinderFlow/PDFInspector.swift`
+- U app-u (Swift): `aiFlow/PDFInspector.swift`
   `PDFInspector.processPDF(url:)` → `pdf_type | confidence | pages_needing_ocr | markdown`.
   Za prompt izvod: `PDFInspector.describe(url:size:maxChars:)` → `(preview, details)`.
 - Iz terminala / drugog agenta: `./tools/pdf-inspect/run.sh dokument.pdf --json`
@@ -20,11 +20,11 @@ Pravila:
    (Vision on-device, ništa se ne uploaduje).
 4. Excerpt za model max ~4000 znakova, format `"label: vrednost | label: vrednost"`.
 5. Ako menjaš logiku ekstrakcije, sinhronizuj OBA mesta:
-   `FinderFlow/PDFInspector.swift` i `tools/pdf-inspect/main.swift`.
+   `aiFlow/PDFInspector.swift` i `tools/pdf-inspect/main.swift`.
 
 ## E-Sign (potpis PDF-a)
 
-- Kod: `FinderFlow/SignaturePad.swift` (port `signature_pad`, MIT — zadrži
+- Kod: `aiFlow/SignaturePad.swift` (port `signature_pad`, MIT — zadrži
   licencu na dnu fajla), `ESignEngine.swift` (biblioteka potpisa, flatten,
   Ed25519 pečat), `ESignWindow.swift` (prozor, PDFView, Services),
   `SignatureCreatorSheet.swift`.
@@ -37,9 +37,15 @@ Pravila:
 ## Brend (aiFlow)
 
 - Vidljivo ime je **aiFlow** (wordmark: „ai" u gradijentu ikone + „Flow").
-  Interno ostaje FinderFlow: bundle ID `com.finderflow.app`, Swift modul
-  `FinderFlow`, folderi u Application Support, Keychain ključevi, repo i
-  release fajlovi — ne mijenjaj ih (podešavanja, ključevi i dozvole bi se izgubili).
+  Source folderi su preimenovani: `aiFlow/` (app kod), `aiFlowExtension/`,
+  `aiFlowShareAgent/`, projekat `aiFlow.xcodeproj`, Mail skripta `aiFlowSave`.
+  Interno ostaje staro ime: bundle ID `com.finderflow.app` (+ `.extension`),
+  Swift modul `FinderFlow`, Xcode targeti/produkti (`FinderFlow.app`,
+  `FinderFlowExtension.appex`), folderi u Application Support, Keychain
+  ključevi, URL scheme `finderflow://`, launchd label
+  `com.finderflow.share-agent` i release fajlovi (`release.sh` daje
+  `FinderFlow-<verzija>.dmg`) — ne mijenjaj ih (podešavanja, ključevi
+  i dozvole bi se izgubili).
 - Lokalni build daje `build/local/aiFlow.app` (izvršni fajl `aiFlow`);
   instalirano je `/Applications/aiFlow.app` — nikad ne vraćaj `FinderFlow.app` pored nje.
 - Ikona: `swift tools/brand/make_icon.swift <dir>` (16 px ima pojednostavljen crtež).
@@ -61,8 +67,8 @@ onoga što korisnik eksplicitno odobri.
 
 ## Folder Rules (automatsko sređivanje)
 
-- Kod: `FinderFlow/FolderRules.swift` (model, offline parser pravila, engine,
-  watcher, AI gate) i `FinderFlow/FolderRulesUI.swift` (desni klik, prozor s
+- Kod: `aiFlow/FolderRules.swift` (model, offline parser pravila, engine,
+  watcher, AI gate) i `aiFlow/FolderRulesUI.swift` (desni klik, prozor s
   pravilima, Settings sekcija, bedž u statusnoj traci).
 - Testovi/harness: postavi `FF_FOLDER_RULES_DIR=<privremeni folder>` (dnevnik
   i AI keš idu tamo, ne u korisnikov Application Support), podmetni

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Old FinderFlow folder icon (superseded).
+"""Old aiFlow folder icon (superseded).
 
 The aiFlow icon is drawn by tools/brand/make_icon.swift:
-    swift tools/brand/make_icon.swift FinderFlow/Assets.xcassets/AppIcon.appiconset
+    swift tools/brand/make_icon.swift aiFlow/Assets.xcassets/AppIcon.appiconset
 """
 
 import os, sys, math
 import Quartz as Q
 
-ICONSET_DIR = "FinderFlow/Assets.xcassets/AppIcon.appiconset"
+ICONSET_DIR = "aiFlow/Assets.xcassets/AppIcon.appiconset"
 
 # ── drawing ────────────────────────────────────────────────────────────────
 

@@ -16,7 +16,7 @@ Verified in this checkout with Node 22.21.1 and Swift 6.3.3 on Apple Silicon.
 ## Managed-server regression and packaging
 
 - `./build-local.sh --no-run`: passed. Main application and embedded Share Agent compiled, packaged and ad-hoc signed.
-- `codesign --verify --deep --strict build/local/FinderFlow.app`: passed.
+- `codesign --verify --deep --strict build/local/aiFlow.app`: passed.
 - `./tools/share-test/run.sh`: **11 tests passed, zero failures or skipped tests**. Includes the actual Swift agent, temporary snapshots and isolated test signing keys.
 - Covered: device signature/replay checks, cross-device ownership, token/session secrecy, passwords, permissions, full/HEAD/Range/If-Range, concurrent quota reservation, expiry, revoke during transfer, bounded credit, malformed data rejection, missing/changed files, zero-length files, snapshot integrity/symlink refusal, snapshot cleanup, agent reconnect and opt-out, and renewal.
 - SQL ran on the PostgreSQL engine through PGlite. Docker Compose configuration parsed successfully with synthetic settings, but Docker daemon was unavailable, so a networked PostgreSQL/container deployment was not run.

@@ -1,16 +1,16 @@
--- FinderFlowSave.applescript
+-- aiFlowSave.applescript
 --
 -- Mail.app Rule (Run AppleScript): svaki dolazni mail snima kao .eml
--- u jedini Email folder (Email/Inbox). FinderFlow Sync ga odatle pokupi,
+-- u jedini Email folder (Email/Inbox). aiFlow Sync ga odatle pokupi,
 -- klasifikuje, fajluje i arhivira izvor u Done. Radi sa SVIM nalozima u
 -- Mail.app-u (Gmail, Outlook, iCloud, IMAP) — bez OAuth klijenata i lozinki.
 --
 -- Instalacija:
---   1. osacompile -o ~/Library/Application\ Scripts/com.apple.mail/FinderFlowSave.scpt tools/mail-rule/FinderFlowSave.applescript
+--   1. osacompile -o ~/Library/Application\ Scripts/com.apple.mail/aiFlowSave.scpt tools/mail-rule/aiFlowSave.applescript
 --   2. Restartuj Mail (listu skripti cita samo pri startu).
 --   3. Mail → Settings → Rules → Add Rule:
 --        uslov (npr. Subject contains Valens — za pocetak usko!)
---        akcija: Run AppleScript → FinderFlowSave
+--        akcija: Run AppleScript → aiFlowSave
 --   4. Postojecu poruku: selektuj je → Message → Apply Rules.
 --   5. Dijagnoza: cat ~/Documents/FinderFlow/Email/mailrule.log
 --
