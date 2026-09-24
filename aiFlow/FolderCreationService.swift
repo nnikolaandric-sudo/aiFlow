@@ -220,6 +220,9 @@ class FileOperationsService: NSObject, ObservableObject {
         NotificationCenter.default.addObserver(
             self, selector: #selector(handleExternalPasteboardWrite),
             name: .ffExternalPasteboardWrite, object: nil)
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(handleFileURLsPasteboardWrite),
+            name: .ffFileURLsPasteboardWrite, object: nil)
     }
 
     deinit {
@@ -230,12 +233,18 @@ class FileOperationsService: NSObject, ObservableObject {
 
     @objc private func handleExternalPasteboardWrite() {
         // Eksterni string upis (Copy Path, diagnostics) ponistava cut: ako na
-        // pasteboardu vise nema file URL-ova, ocisti cut da Paste ne bi vukao staro.
+        // pasteboardu vise nema file URL-ova, ocisti cut da bi Paste ne zalepio ustajale fajlove.
         if isCut {
             let hasFiles = (NSPasteboard.general.readObjects(forClasses: [NSURL.self],
                 options: [.urlReadingFileURLsOnly: true]) as? [URL])?.contains(where: \.isFileURL) ?? false
             if !hasFiles { clipboardURLs = []; isCut = false; cutChangeCount = nil }
         }
+        refreshPasteboardCache()
+    }
+
+    @objc private func handleFileURLsPasteboardWrite(_ notification: Notification) {
+        guard let writer = notification.object as? FileOperationsService, writer !== self else { return }
+        if isCut { isCut = false; cutChangeCount = nil }
         refreshPasteboardCache()
     }
 
@@ -245,6 +254,7 @@ class FileOperationsService: NSObject, ObservableObject {
     // MARK: Clipboard
 
     func copy(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
         clipboardURLs = urls; isCut = false; cutChangeCount = nil
         writeToPasteboard(urls)
         // Seed synchronously: the async re-read below may not have run when
@@ -256,6 +266,7 @@ class FileOperationsService: NSObject, ObservableObject {
     }
 
     func cut(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
         clipboardURLs = urls; isCut = true
         writeToPasteboard(urls)
         cachedPasteboardURLs = urls
@@ -283,6 +294,7 @@ class FileOperationsService: NSObject, ObservableObject {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.writeObjects(urls.map { $0 as NSURL })
+        NotificationCenter.default.post(name: .ffFileURLsPasteboardWrite, object: self)
     }
 
     /// Cached pasteboard snapshot — `readObjects` is XPC/IPC to pboard, so

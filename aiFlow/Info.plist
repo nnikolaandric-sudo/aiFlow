@@ -104,6 +104,47 @@
 				<string>com.adobe.pdf</string>
 			</array>
 		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Combine into PDF with aiFlow</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>combineIntoPDF</string>
+			<key>NSPortName</key>
+			<string>aiFlow</string>
+			<key>NSRequiredContext</key>
+			<dict>
+				<key>NSApplicationIdentifier</key>
+				<string>com.apple.finder</string>
+			</dict>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>com.adobe.pdf</string>
+				<string>public.image</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSMenuItem</key>
+			<dict>
+				<key>default</key>
+				<string>Make PDF Searchable with aiFlow</string>
+			</dict>
+			<key>NSMessage</key>
+			<string>makePDFSearchable</string>
+			<key>NSPortName</key>
+			<string>aiFlow</string>
+			<key>NSRequiredContext</key>
+			<dict>
+				<key>NSApplicationIdentifier</key>
+				<string>com.apple.finder</string>
+			</dict>
+			<key>NSSendFileTypes</key>
+			<array>
+				<string>com.adobe.pdf</string>
+			</array>
+		</dict>
 	</array>
 </dict>
 </plist>

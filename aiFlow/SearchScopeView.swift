@@ -66,7 +66,7 @@ struct SearchScopeView: View {
                 .lineLimit(1)
                 .focused($searchFocused)
                 .resetsCursorOnExit()
-                .help("Fuzzy name, several words, or an extension like .pdf")
+                .help("Fuzzy name, several words, or an extension like .pdf. ⌘⇧F opens the file palette.")
                 .onSubmit { rerunSearch() }
                 // Esc clears the query and returns to the folder listing
                 // (Finder behavior). Only when the field has focus.
@@ -109,25 +109,11 @@ struct SearchScopeView: View {
                 .buttonStyle(.plain)
                 .help("Clear search (Esc)")
             } else if !searchFocused {
-                Text("⌘F")
+                Text("Find")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(.tertiary)
                     .fixedSize()
             }
-
-            // ⌘F focuses search from anywhere.
-            Button("") {
-                searchFocused = true
-                // Finder behavior: focus selects the existing query so the
-                // next keystroke overwrites it instead of appending.
-                DispatchQueue.main.async {
-                    NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil)
-                }
-            }
-            .keyboardShortcut("f", modifiers: .command)
-            .frame(width: 0, height: 0)
-            .opacity(0)
-            .accessibilityHidden(true)
         }
         .padding(.leading, 6)
         .padding(.trailing, 8)

@@ -47,6 +47,7 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         FolderRulesService.shared.start()
         // Mail integration: globalni ⌥⌘A picker (MailAttachService.swift).
         MailAttachService.shared.start()
+        FileCommandPaletteWindowManager.shared.installShortcutMonitor()
         // Mail Inbox auto-sync (Settings ▸ Mail Inbox, off by default).
         MailInboxWatcher.shared.refresh()
         SecureShareManager.resumeIfConfigured()
@@ -278,6 +279,10 @@ struct FinderFlowCommands: Commands {
                 NotificationCenter.default.post(name: .ffAttachFromFinderFlow, object: nil)
             }
             .keyboardShortcut("a", modifiers: [.command, .option])
+            Button("Search Files…") {
+                NotificationCenter.default.post(name: .ffOpenFilePalette, object: nil)
+            }
+            .keyboardShortcut("f", modifiers: [.command, .shift])
             Button("Show Open/Save Assistant") {
                 NotificationCenter.default.post(name: .ffShowPanelAssistant, object: nil)
             }
@@ -301,6 +306,17 @@ struct FinderFlowCommands: Commands {
                 MailInboxWindowManager.shared.open()
             }
             .keyboardShortcut("m", modifiers: [.command, .option])
+            Divider()
+            // Today (TodayView.swift): tasks, reminders, reviews, mail, sorts.
+            Button("Today") {
+                TodayWindowManager.shared.open()
+            }
+            .keyboardShortcut("0", modifiers: .command)
+            // PDF Tools (PDFTools.swift): the selection, else an empty window.
+            Button("PDF Tools…") {
+                let sel = FFSelectionRequest.current(preferring: NSApp.keyWindow).selection
+                PDFToolsWindowManager.shared.open(tool: nil, urls: sel)
+            }
         }
         // ── Go (Finder-style navigation) ────────────────────────────
         CommandMenu("Go") {
@@ -360,6 +376,12 @@ struct FinderFlowCommands: Commands {
         // ── View: appended after the standard toolbar-visibility group.
         // (Was CommandMenu("View") — duplicate View menu. Merged instead.)
         CommandGroup(after: .toolbar) {
+            // ⌘K: every action, place and task in one fuzzy list (CommandPalette.swift).
+            Button("Command Palette…") {
+                CommandPaletteController.shared.toggle()
+            }
+            .keyboardShortcut("k", modifiers: .command)
+            Divider()
             Button("as List") { viewModeRaw = ViewMode.list.rawValue }
                 .keyboardShortcut("1", modifiers: .command)
             Button("as Icons") { viewModeRaw = ViewMode.icons.rawValue }
@@ -435,6 +457,8 @@ extension Notification.Name {
     static let ffQuickLinkStarted = Notification.Name("FF.quickLinkStarted")
     static let ffQuickLinkFeedback = Notification.Name("FF.quickLinkFeedback")
     static let ffAttachFromFinderFlow = Notification.Name("FF.attachFromFinderFlow")
+    static let ffOpenFilePalette     = Notification.Name("FF.openFilePalette")
+    static let ffOpenPaletteURL      = Notification.Name("FF.openPaletteURL")
     static let ffShowPanelAssistant = Notification.Name("FF.showPanelAssistant")
     static let ffGoBack          = Notification.Name("FF.goBack")
     static let ffGoForward       = Notification.Name("FF.goForward")
@@ -454,4 +478,5 @@ extension Notification.Name {
     /// Copy diagnostics…) — ponistava i cut i kes URL-ova, pa FileOperations
     /// osvezava kes da Paste ne bi zalepio ustajale fajlove.
     static let ffExternalPasteboardWrite = Notification.Name("FF.externalPasteboardWrite")
+    static let ffFileURLsPasteboardWrite = Notification.Name("FF.fileURLsPasteboardWrite")
 }

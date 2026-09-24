@@ -21,8 +21,8 @@ APP_NAME="FinderFlow"          # Swift module (internal, unchanged: archived cla
 BUNDLE_NAME="aiFlow"           # what Finder, the Dock and Spotlight show
 EXEC_NAME="aiFlow"             # process name in Activity Monitor / Force Quit
 BUNDLE_ID="com.finderflow.app"
-VERSION="2.1.1"
-BUILD_NUM="10"
+VERSION="2.2.0"
+BUILD_NUM="11"
 DEPLOYMENT_TARGET="14.0"
 CONFIG="Debug"
 RUN_APP=1
@@ -108,8 +108,8 @@ plist = {
     'CFBundleName': 'aiFlow',
     'CFBundleDisplayName': 'aiFlow',
     'CFBundlePackageType': 'APPL',
-    'CFBundleShortVersionString': '2.1.1',
-    'CFBundleVersion': '10',
+    'CFBundleShortVersionString': '2.2.0',
+    'CFBundleVersion': '11',
     'LSMinimumSystemVersion': '14.0',
     'NSHumanReadableCopyright': 'Copyright © 2024 aiFlow. All rights reserved.',
     'NSPrincipalClass': 'NSApplication',
@@ -141,6 +141,17 @@ plist = {
          'NSPortName': 'aiFlow',
          'NSRequiredContext': {'NSApplicationIdentifier': 'com.apple.finder'},
          'NSSendFileTypes': ['com.adobe.pdf']},
+        # PDF Tools (PDFTools.swift, extension of ESignServiceProvider).
+        {'NSMenuItem': {'default': 'Combine into PDF with aiFlow'},
+         'NSMessage': 'combineIntoPDF',
+         'NSPortName': 'aiFlow',
+         'NSRequiredContext': {'NSApplicationIdentifier': 'com.apple.finder'},
+         'NSSendFileTypes': ['com.adobe.pdf', 'public.image']},
+        {'NSMenuItem': {'default': 'Make PDF Searchable with aiFlow'},
+         'NSMessage': 'makePDFSearchable',
+         'NSPortName': 'aiFlow',
+         'NSRequiredContext': {'NSApplicationIdentifier': 'com.apple.finder'},
+         'NSSendFileTypes': ['com.adobe.pdf']},
     ],
 }
 with open(sys.argv[1], 'wb') as f:
@@ -150,6 +161,11 @@ PYEOF
 
 echo "==> Copying resources (AceEditor)..."
 cp -R aiFlow/AceEditor "$RESOURCES/AceEditor"
+
+# Shortcuts/Spotlight read App Intents from Metadata.appintents, which only
+# Xcode generates — CLT builds write it from tools/appintents (AppIntents.swift).
+echo "==> Writing App Intents metadata..."
+python3 tools/appintents/make_metadata.py "$MACOS/$EXEC_NAME" "$RESOURCES"
 
 echo "==> Building AppIcon.icns..."
 ICONSET="$OUT/AppIcon.iconset"

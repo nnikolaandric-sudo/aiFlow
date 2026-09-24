@@ -33,6 +33,7 @@ enum KeyboardShortcuts {
             ShortcutEntry(title: "Organize with AI…", keys: "⌥⌘O"),
             ShortcutEntry(title: "Sign Document…", keys: "⌥⌘E"),
             ShortcutEntry(title: "Mail Inbox…", keys: "⌥⌘M"),
+            ShortcutEntry(title: "Today", keys: "⌘0"),
             ShortcutEntry(title: "Undo / Redo", keys: "⌘Z / ⇧⌘Z"),
             ShortcutEntry(title: "Copy / Cut / Paste", keys: "⌘C / ⌘X / ⌘V"),
             ShortcutEntry(title: "Duplicate", keys: "⌘D"),
@@ -40,6 +41,7 @@ enum KeyboardShortcuts {
             ShortcutEntry(title: "Select all", keys: "⌘A"),
         ]),
         ShortcutGroup(title: "Navigation", symbol: "arrow.left.arrow.right", entries: [
+            ShortcutEntry(title: "Command palette (actions, places, tasks)", keys: "⌘K"),
             ShortcutEntry(title: "Back / Forward", keys: "⌘[ / ⌘]"),
             ShortcutEntry(title: "Enclosing folder", keys: "⌘↑"),
             ShortcutEntry(title: "Go to Folder…", keys: "⇧⌘G"),
@@ -47,7 +49,7 @@ enum KeyboardShortcuts {
             ShortcutEntry(title: "Up one folder", keys: "⌫"),
             ShortcutEntry(title: "Clear selection", keys: "Esc"),
             ShortcutEntry(title: "Type a path", keys: "⌘L"),
-            ShortcutEntry(title: "Focus search", keys: "⌘F"),
+            ShortcutEntry(title: "Open file palette", keys: "⇧⌘F"),
         ]),
         ShortcutGroup(title: "Preview & selection", symbol: "eye.fill", entries: [
             ShortcutEntry(title: "Quick Look", keys: "Space"),

@@ -8,6 +8,7 @@ struct AISettingsDetail: View {
         Form {
             AIOrganizerSettingsSection()
             FolderRulesSettingsSection()
+            AIEvaluationSettingsSection()
         }
         .formStyle(.grouped)
     }
@@ -158,6 +159,15 @@ struct AIOrganizerSettingsSection: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            Toggle(isOn: $ai.redactPersonalData) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Redact personal data before sending")
+                    Text("Emails, phone numbers and account-looking values are replaced with placeholders in document excerpts before they reach OpenRouter.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             HStack {
                 Text("Spent this month: \(String(format: "$%.4f", ai.monthSpend())) / \(String(format: "$%.2f", ai.monthlyCapUSD))")
                     .font(.caption)
@@ -218,5 +228,60 @@ struct AIModelPicker: View {
             }
         }
         .pickerStyle(.menu)
+    }
+}
+
+struct AIEvaluationSettingsSection: View {
+    @ObservedObject private var log = AIExecutionLog.shared
+
+    var body: some View {
+        Section {
+            if log.records.isEmpty {
+                Text("Local execution metrics appear here after an AI run. aiFlow stores task name, model, token counts, cost, latency and a payload hash — never file contents, API keys or names.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                HStack(spacing: 18) {
+                    metric(title: "Runs", value: "\(log.records.count)")
+                    metric(title: "Successful", value: "\(log.successfulCount)")
+                    metric(title: "Avg latency", value: "\(log.averageLatencyMS)ms")
+                    metric(title: "Tracked cost", value: String(format: "$%.4f", log.totalCost))
+                }
+                ForEach(log.records.prefix(8)) { record in
+                    HStack(spacing: 8) {
+                        Image(systemName: record.success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundStyle(record.success ? .green : .red)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(record.task)
+                                .font(.caption.weight(.medium))
+                            Text("\(record.model) · \(record.fileCount) files · \(record.promptTokens + record.completionTokens) tokens")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Text(String(format: "$%.4f", record.costUSD))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                Button("Clear local AI metrics", role: .destructive) { log.clear() }
+                    .buttonStyle(.link)
+                    .font(.caption)
+            }
+        } header: {
+            FFSectionHeader(title: "AI Evaluation & Observability", symbol: "chart.bar.xaxis", tint: FFTheme.ai)
+        }
+    }
+
+    private func metric(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .font(.headline.monospacedDigit())
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 }

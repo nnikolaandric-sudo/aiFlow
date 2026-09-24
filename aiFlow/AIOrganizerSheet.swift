@@ -323,6 +323,7 @@ struct AIOrganizerSheet: View {
     @State private var useSelection = false
     /// Read once per appearance / window activation — each check is a Keychain lookup.
     @State private var hasKey = true
+    @State private var showPayload = false
 
     private static let instructionChips = ["Invoices: number - supplier - date", "Dates first (YYYY-MM-DD)", "English names", "Group by year", "Short names"]
 
@@ -574,6 +575,38 @@ struct AIOrganizerSheet: View {
                     }
                 }
 
+                DisclosureGroup("Review what will be sent", isExpanded: $showPayload) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(ai.sendPreviews ? "Document text excerpts are included when available." : "Only file names, sizes and dates are included.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        ForEach(targets.prefix(20), id: \.id) { item in
+                            HStack(spacing: 5) {
+                                Image(systemName: "doc")
+                                Text(item.name)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                Spacer()
+                                Text(ByteCountFormatter.string(fromByteCount: item.size, countStyle: .file))
+                                    .foregroundStyle(.secondary)
+                            }
+                            .font(.caption)
+                        }
+                        if targets.count > 20 {
+                            Text("+ \(targets.count - 20) more files")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        if ai.redactPersonalData {
+                            Label("Personal data redaction is on", systemImage: "checkmark.shield")
+                                .font(.caption)
+                                .foregroundStyle(.green)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .font(.callout.weight(.semibold))
+
                 Label(privacyLine, systemImage: "lock.shield")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -589,6 +622,7 @@ struct AIOrganizerSheet: View {
         }
         var text = "Sends file names, sizes and dates"
         if ai.sendPreviews { text += " plus the text of documents (PDF, Word, text; scans and photos are read on this Mac with OCR)" }
+        if ai.sendPreviews && ai.redactPersonalData { text += "; emails, phone numbers and account-looking values are redacted first" }
         if AIService.isJevModel(ai.modelID) {
             text += " to Jev (System One decisions) plus \(ai.extractionModel) (string extraction) via OpenRouter."
         } else {
@@ -862,6 +896,22 @@ struct AIOrganizerSheet: View {
                         .foregroundStyle(Color.accentColor)
                         .lineLimit(2)
                         .help(factsHelp(p.facts))
+                    HStack(spacing: 6) {
+                        if !p.facts.confidenceSummary.isEmpty {
+                            Label(p.facts.confidenceSummary, systemImage: "checkmark.shield")
+                        }
+                        if !p.facts.pageSummary.isEmpty {
+                            Label(p.facts.pageSummary, systemImage: "doc.on.doc")
+                        }
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                }
+                if !p.facts.warnings.isEmpty {
+                    Label(p.facts.warnings.joined(separator: " · "), systemImage: "exclamationmark.triangle")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                        .lineLimit(2)
                 }
             }
             Spacer(minLength: 4)
@@ -933,6 +983,9 @@ struct AIOrganizerSheet: View {
         }
         if !f.title.isEmpty { lines.append("Title: \(f.title)") }
         if !f.language.isEmpty { lines.append("Language: \(f.language)") }
+        if !f.confidenceSummary.isEmpty { lines.append(f.confidenceSummary) }
+        if !f.pageSummary.isEmpty { lines.append(f.pageSummary) }
+        if !f.warnings.isEmpty { lines.append("Warnings: " + f.warnings.joined(separator: ", ")) }
         return lines.joined(separator: "\n")
     }
 

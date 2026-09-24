@@ -117,3 +117,24 @@ onoga što korisnik eksplicitno odobri.
   sistemski notification prompt (jednokratno, na prvoj notifikaciji) i
   postojeći SecureShare prozor kad ga korisnik sam otvori. Nikad ne diraj
   korisnikov `~/Library/Application Support/FinderFlow/Workspaces/` iz testova.
+
+## Today, ⌘K paleta, PDF Tools, App Intents (Shortcuts)
+
+- Kod: `TodayView.swift` (Today prozor + sidebar red s bedžom; ne čuva
+  podatke — `TodaySnapshot.build` računa iz Workspace/Mail/Folder Rules
+  storeova, akcije idu kroz njihove API-je), `CommandPalette.swift` (⌘K;
+  selekciju browsera daje `FFSelectionBridge` modifier na ContentView),
+  `PDFTools.swift` (`PDFToolsEngine` bez UI-ja + prozor + desni klik +
+  Finder Services), `AppIntents.swift` (Shortcuts akcije + App Shortcut).
+- PDF Tools nikad ne mijenja original — rezultat je nova datoteka pored
+  njega (`uniqueDestinationURL`). OCR = PDFKit `saveTextFromOCROption`
+  (Vision na uređaju, ništa se ne uploaduje).
+- ⚠️ App Intents bez Xcodea: `build-local.sh` piše
+  `Contents/Resources/Metadata.appintents` preko
+  `tools/appintents/make_metadata.py` (mangled imena čita iz binarnog `nm`).
+  Novi/preimenovani intent ili `@Parameter` → ažuriraj `INTENTS` u skripti,
+  inače Shortcuts prikaže akciju ali je ne može pokrenuti.
+- Testovi/harness: `FF_WORKSPACE_DIR`, `FF_WORKSPACE_DISABLE_NOTIF=1`,
+  `FF_MAIL_DIR`, `FF_FOLDER_RULES_DIR`, `FF_SHARE_DIR` (Today čita Secure
+  Share registar), sve na privremene foldere. Folder Rules čeka da se
+  svjež fajl „slegne" — u testu postavi stariji modification date.

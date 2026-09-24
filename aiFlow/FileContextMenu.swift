@@ -214,6 +214,8 @@ struct FileContextMenuContent: View {
                 Label(pdfs.count == 1 ? "Verify Signature" : "Verify \(pdfs.count) Signatures", systemImage: "checkmark.seal")
             }
         }
+        // PDF Tools ▸ combine / images → PDF / split / OCR… (PDFTools.swift).
+        PDFToolsMenuItems(urls: urls)
         // Workspace quick capture: task/reminder auto-linked to this file
         // (§4+§6). Works anywhere — outside a workspace the parent folder
         // is enabled first, so the entry always has a home.
@@ -357,7 +359,7 @@ struct FileContextMenuContent: View {
             GitMenuContent(urls: urls, onReload: onReload)
         }
         Divider()
-        if single && first.isBrowsableFolder {
+        if single && first.isBrowsableFolder && !SidebarView.isSystemLocation(first.url) {
             if favorites.isPinned(first.url) {
                 Button { favorites.unpin(first.url) } label: {
                     Label("Remove from Sidebar", systemImage: "pin.slash")

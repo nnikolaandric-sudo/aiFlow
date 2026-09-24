@@ -239,6 +239,9 @@ final class AIService: ObservableObject {
     @Published var sendPreviews: Bool {
         didSet { UserDefaults.standard.set(sendPreviews, forKey: "ffAISendPreviews") }
     }
+    @Published var redactPersonalData: Bool {
+        didSet { UserDefaults.standard.set(redactPersonalData, forKey: "ffAIRedactPersonalData") }
+    }
     // Last choices in the organizer sheet.
     @Published var renameFiles: Bool {
         didSet { UserDefaults.standard.set(renameFiles, forKey: "ffAIRenameFiles") }
@@ -268,6 +271,7 @@ final class AIService: ObservableObject {
         maxReplyTokens = rt > 0 ? rt : Self.defaultMaxReplyTokens
         reviewBeforeApply = d.object(forKey: "ffAIReviewFirst") as? Bool ?? true
         sendPreviews = d.object(forKey: "ffAISendPreviews") as? Bool ?? true
+        redactPersonalData = d.object(forKey: "ffAIRedactPersonalData") as? Bool ?? true
         renameFiles = d.object(forKey: "ffAIRenameFiles") as? Bool ?? true
         useSubfolders = d.object(forKey: "ffAIUseSubfolders") as? Bool ?? true
         deleteDuplicates = d.object(forKey: "ffAIDeleteDuplicates") as? Bool ?? false
@@ -502,13 +506,14 @@ final class AIService: ObservableObject {
             let size = Int64(v.fileSize ?? 0)
             let content = AIContentReader.describe(url, size: size, modified: v.contentModificationDate,
                                                    maxChars: maxChars, includeContent: includeContent)
+            let preview = content.preview.map { redactPersonalData ? AIPrivacy.redact($0) : $0 }
             let ext = url.pathExtension.lowercased()
             out.append(AIFileEntry(
                 url: url,
                 name: name,
                 kind: ext.isEmpty ? "file" : ext.uppercased(),
                 size: size,
-                preview: content.preview,
+                preview: preview,
                 details: content.details
             ))
         }
@@ -522,7 +527,7 @@ final class AIService: ObservableObject {
             "Read each excerpt the way a person would: work out what kind of document it is (invoice/faktura/račun, receipt, pro-forma/predračun, offer/ponuda, order, contract/ugovor, annex/aneks, statement/izvod, report, letter, CV, ticket, photo, screenshot…) and extract AS MUCH structured data as you can find. NUMBER = Broj fakture / Broj računa / Broj dokumenta / Faktura br. / Poziv na broj; SUPPLIER/ISSUER = Dobavljač / Prodavac / Izdavalac (the company that issued it — header/logo, NOT the Kupac/buyer); BUYER = Kupac / Klijent / Primalac (only to tell them apart); ISSUE DATE = Datum izdavanja / Datum fakture / Datum računa / Datum prometa (the date it was issued, YYYY-MM-DD); DUE DATE = Datum dospeća / Rok plaćanja / Valuta / Due date (YYYY-MM-DD, report it even when it equals the issue date); CURRENCY = Valuta / Oznaka valute (RSD, EUR, USD…); AMOUNT = Iznos / Ukupno za plaćanje (copy the total as written); TITLE = Naziv / Predmet / Opis usluge (short subject); LANGUAGE = Jezik dokumenta (sr, en, de…). For naming NEVER use due date or modified date — only the issue date. Excerpts marked \"text read by OCR\" may contain small recognition errors. Never invent facts that aren't in the name, excerpt or details.",
             "Keep every file extension exactly as it is.",
             "Build names from those facts. INVOICES FIRST: always \"<Tip> <broj> - <dobavljač> - <YYYY-MM-DD>\" when you have them, e.g. \"Faktura 123-45 - Telekom Srbija - 2024-03-12\" or \"Invoice 2024-0317 - Primjer d.o.o. - 2024-03-12\". Tip follows the document's language (Faktura / Račun / Predračun / Ponuda for Serbian, Invoice / Receipt / Pro-forma / Offer for English) unless the user's instructions say otherwise. If one part is missing keep the other two (\"Faktura 123 - Telekom Srbija\"). Contracts/annexes: \"<Contract> - <other party or subject> - <YYYY-MM-DD>\". Anything else: \"<what it is> - <who or what it's about> - <YYYY-MM-DD>\". Copy numbers, PIBs, IDs and company names exactly as written.",
-            "Return every fact you found: \"type\" (one lowercase English word: invoice, receipt, proforma, offer, order, contract, annex, statement, report, letter, photo, screenshot or other — Serbian Faktura/Račun = invoice), \"issuer\" (= Dobavljač/supplier, NOT Kupac), \"number\" (= Broj fakture), \"date\" (= Datum izdavanja, YYYY-MM-DD, never due date), \"due_date\" (= Datum dospeća, YYYY-MM-DD), \"currency\" (RSD/EUR/USD…), \"amount\" (Ukupno kako piše), \"title\" (= Naziv/predmet), \"language\" (sr/en/de…), \"buyer\" (= Kupac, only when present); use \"\" for anything you couldn't find.",
+            "Return every fact you found: \"type\" (one lowercase English word: invoice, receipt, proforma, offer, order, contract, annex, statement, report, letter, photo, screenshot or other — Serbian Faktura/Račun = invoice), \"issuer\" (= Dobavljač/supplier, NOT Kupac), \"number\" (= Broj fakture), \"date\" (= Datum izdavanja, YYYY-MM-DD, never due date), \"due_date\" (= Datum dospeća, YYYY-MM-DD), \"currency\" (RSD/EUR/USD…), \"amount\" (Ukupno kako piše), \"title\" (= Naziv/predmet), \"language\" (sr/en/de…), \"buyer\" (= Kupac, only when present); use \"\" for anything you couldn't find. Add \"confidence\" as an object with a 0..1 score for each extracted field and \"source_pages\" as an object with page numbers when the excerpt makes them knowable; do not invent page numbers.",
             "No emoji, no \"/\" or \":\" in names, and never start a name with \".\".",
             "List only files that change (new name, folder, or duplicate marked for deletion); leave every other file out.",
         ]
@@ -545,7 +550,7 @@ final class AIService: ObservableObject {
         Rules:
         \(numbered)
         Reply with ONLY this JSON — no markdown fences, no commentary:
-        {"files":[{"from":"exact current filename","name":"new filename","folder":"","delete":false,"duplicate_of":"","reason":"","type":"","issuer":"","number":"","date":"","due_date":"","currency":"","amount":"","title":"","language":"","buyer":""}]}
+        {"files":[{"from":"exact current filename","name":"new filename","folder":"","delete":false,"duplicate_of":"","reason":"","type":"","issuer":"","number":"","date":"","due_date":"","currency":"","amount":"","title":"","language":"","buyer":"","confidence":{},"source_pages":{}}]}
         """
     }
 
@@ -555,7 +560,7 @@ final class AIService: ObservableObject {
     /// deletions — naming and duplicate matching happen in code.
     static func extractionSystemPrompt(options: AIOrganizeOptions = AIOrganizeOptions()) -> String {
         var rules = [
-            "Read each excerpt the way a person would and extract AS MUCH structured data as you can find. NUMBER = Broj fakture / Broj računa / Broj dokumenta / Poziv na broj; ISSUER = Dobavljač / Prodavac / Izdavalac (header/logo, NOT Kupac); BUYER = Kupac / Klijent; DATE = Datum izdavanja / Datum fakture / Datum prometa (YYYY-MM-DD); DUE_DATE = Datum dospeća / Rok plaćanja / Valuta (YYYY-MM-DD); CURRENCY = Valuta (RSD, EUR, USD…); AMOUNT = Iznos / Ukupno kako piše; TITLE = Naziv / Predmet; LANGUAGE = Jezik (sr, en, de…); TYPE = one lowercase English word (invoice, receipt, proforma, offer, order, contract, annex, statement, report, letter, photo, screenshot or other). A “Jev classification” block lists type/language/currency Jev already decided — trust it over your own guess for those three fields. Excerpts marked \"text read by OCR\" may contain small errors. Never invent a value — use \"\" when absent.",
+            "Read each excerpt the way a person would and extract AS MUCH structured data as you can find. NUMBER = Broj fakture / Broj računa / Broj dokumenta / Poziv na broj; ISSUER = Dobavljač / Prodavac / Izdavalac (header/logo, NOT Kupac); BUYER = Kupac / Klijent; DATE = Datum izdavanja / Datum fakture / Datum prometa (YYYY-MM-DD); DUE_DATE = Datum dospeća / Rok plaćanja / Valuta (YYYY-MM-DD); CURRENCY = Valuta (RSD, EUR, USD…); AMOUNT = Iznos / Ukupno kako piše; TITLE = Naziv / Predmet; LANGUAGE = Jezik (sr, en, de…); TYPE = one lowercase English word (invoice, receipt, proforma, offer, order, contract, annex, statement, report, letter, photo, screenshot or other). A “Jev classification” block lists type/language/currency Jev already decided — trust it over your own guess for those three fields. Excerpts marked \"text read by OCR\" may contain small errors. Never invent a value — use \"\" when absent. Add \"confidence\" as an object with a 0..1 score for each extracted field and \"source_pages\" as an object with page numbers when the excerpt makes them knowable; do not invent page numbers.",
             "Do NOT invent filenames: \"name\" is always the exact current filename (copy of \"from\"). aiFlow composes the new name from the facts.",
             "Return one object per file where you found at least \"type\" or one other fact; leave files you couldn't read out. Use \"\" for every fact you couldn't find.",
             "No emoji. Keep every file extension exactly as it is (keep \"name\" == \"from\" untouched).",
@@ -573,7 +578,7 @@ final class AIService: ObservableObject {
         Rules:
         \(numbered)
         Reply with ONLY this JSON — no markdown fences, no commentary:
-        {"files":[{"from":"exact current filename","name":"exact current filename","folder":"","type":"","issuer":"","number":"","date":"","due_date":"","currency":"","amount":"","title":"","language":"","buyer":""}]}
+        {"files":[{"from":"exact current filename","name":"exact current filename","folder":"","type":"","issuer":"","number":"","date":"","due_date":"","currency":"","amount":"","title":"","language":"","buyer":"","confidence":{},"source_pages":{}}]}
         """
     }
 
@@ -839,6 +844,23 @@ final class AIService: ObservableObject {
         req.setValue("aiFlow", forHTTPHeaderField: "X-Title")
         req.timeoutInterval = 120
         var retries = 0
+        var succeeded = false
+        var outputChars = 0
+        var trackedPrompt = 0
+        var trackedCompletion = 0
+        var trackedCost = 0.0
+        let payloadText = (try? JSONSerialization.data(withJSONObject: body)).flatMap { String(data: $0, encoding: .utf8) } ?? model
+        let startedAt = Date()
+        defer {
+            AIExecutionLog.shared.record(task: "jev", model: model, fileCount: entries.count,
+                                         inputChars: payloadText.count, outputChars: outputChars,
+                                         promptTokens: trackedPrompt > 0 ? trackedPrompt : questions.count * 20,
+                                         completionTokens: trackedCompletion > 0 ? trackedCompletion : outputChars / 4,
+                                         costUSD: trackedCost,
+                                         latencyMS: Int(Date().timeIntervalSince(startedAt) * 1_000),
+                                         success: succeeded, payload: payloadText)
+        }
+
         while true {
             if cancel?.isCancelled == true { throw AIError.cancelled }
             let res = try syncPOST(request: req, body: try JSONSerialization.data(withJSONObject: body), cancel: cancel)
@@ -880,13 +902,20 @@ final class AIService: ObservableObject {
             let charged = (usage?["cost"] as? NSNumber)?.doubleValue
                 ?? costUSD(promptTokens: inTokens, completionTokens: outTokens, model: model)
             recordSpend(charged)
+            trackedPrompt = inTokens
+            trackedCompletion = outTokens
+            trackedCost = charged
             let facts = JevClassifier.apply(answers: answers, entries: entries)
+
             let keyPrefix = keyTotal > 1 ? "key \(keyIndex + 1)/\(keyTotal), " : ""
             let summary = "\(keyPrefix)systemone \(model): HTTP \(status), questions \(questions.count), answers \(answers.count), tokens \(inTokens)+\(outTokens), cost \(String(format: "$%.6f", charged))"
             setLastReplySummary(summary)
             Self.log.info("decisions \(summary, privacy: .public)")
+            succeeded = true
+            outputChars = String(data: res.data, encoding: .utf8)?.count ?? 0
             return JevDecisionsResult(facts: facts, costUSD: charged,
                                       inputTokens: inTokens, outputTokens: outTokens)
+
         }
     }
 
@@ -943,6 +972,19 @@ final class AIService: ObservableObject {
         var relaxed = false
         var usedPrompt = 0, usedCompletion = 0
         var cost = 0.0
+        var succeeded = false
+        var outputChars = 0
+        let startedAt = Date()
+        let telemetryPayload = system + "\n" + user
+        defer {
+            AIExecutionLog.shared.record(task: "organizer_plan",
+                                         model: model, fileCount: entries.count,
+                                         inputChars: telemetryPayload.count, outputChars: outputChars,
+                                         promptTokens: usedPrompt > 0 ? usedPrompt : promptTokens,
+                                         completionTokens: usedCompletion, costUSD: cost,
+                                         latencyMS: Int(Date().timeIntervalSince(startedAt) * 1_000),
+                                         success: succeeded, payload: telemetryPayload)
+        }
         while true {
             if cancel?.isCancelled == true { throw AIError.cancelled }
             let res = try syncPOST(request: req, body: try JSONSerialization.data(withJSONObject: body), cancel: cancel)
@@ -1007,6 +1049,7 @@ final class AIService: ObservableObject {
             }
             let content = Self.messageText(message?["content"])
             let reasoning = message?["reasoning"] as? String ?? ""
+            outputChars = content.count + reasoning.count
             var parsed = AIPlanParser.extract(from: content, validNames: validNames)
             if !parsed.foundJSON, !reasoning.isEmpty {
                 // Some reasoning models leave the answer inside their thinking.
@@ -1021,8 +1064,10 @@ final class AIService: ObservableObject {
             let summary = "\(keyPrefix)\(model): HTTP \(status), finish \(finish), max_tokens \(body["max_tokens"] as? Int ?? maxTokens), tokens \(usedPrompt)+\(usedCompletion), reasoning \(reasoning.count) chars, reply \(content.count) chars, rows \(parsed.rawCount), usable \(parsed.items.count)"
             setLastReplySummary(summary)
             Self.log.info("plan \(summary, privacy: .public)")
-            if parsed.foundJSON && (!parsed.items.isEmpty || parsed.rawCount == 0) {
-                return PlanResult(items: parsed.items, promptTokens: usedPrompt, completionTokens: usedCompletion,
+             if parsed.foundJSON && (!parsed.items.isEmpty || parsed.rawCount == 0) {
+                 succeeded = true
+                 return PlanResult(items: parsed.items, promptTokens: usedPrompt, completionTokens: usedCompletion,
+
                                   costUSD: cost, truncated: cutOff)
             }
             if cutOff && !parsed.foundJSON { throw AIError.truncated }

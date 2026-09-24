@@ -126,6 +126,9 @@ struct SidebarView: View {
 
     var body: some View {
         List(selection: $selection) {
+            // Today (TodayView.swift) — own view, so its badge redraws alone.
+            TodaySidebarRow()
+
             Section("Sharing") {
                 Button { SecureShareWindowManager.shared.open() } label: {
                     Label("Shared Files", systemImage: "link")
@@ -144,9 +147,12 @@ struct SidebarView: View {
             }
 
             // ── User-pinned folders ───────────────────────────────────────
-            if !favorites.pinnedURLs.isEmpty {
+            // System locations (Home/Desktop/Documents/Downloads/Applications)
+            // se ne prikazuju ovde čak i ako su ostale u pinnedFolders
+            // iz vremena pre nego što su postale deo Favorites.
+            if !visiblePinned.isEmpty {
                 Section("Pinned") {
-                    ForEach(favorites.pinnedURLs, id: \.self) { url in
+                    ForEach(visiblePinned, id: \.self) { url in
                         sidebarDropRow(url: url, tag: SidebarItem.pinned(url)) {
                             SidebarRow(url: url)
                                 .onTapGesture { go(url) }
@@ -159,7 +165,8 @@ struct SidebarView: View {
                         // Snapshot first: unpin mutates the array, so resolving
                         // each index lazily removes the wrong item — or traps
                         // out of bounds (e.g. deleting rows {0,2} of 3).
-                        let urls = idx.map { favorites.pinnedURLs[$0] }
+                        // idx se odnosi na filtriranu visiblePinned listu.
+                        let urls = idx.map { visiblePinned[$0] }
                         urls.forEach(favorites.unpin)
                     }
                 }
@@ -434,10 +441,24 @@ struct SidebarView: View {
             fm.urls(for: .desktopDirectory,  in: .userDomainMask).first,
             fm.urls(for: .documentDirectory, in: .userDomainMask).first,
             fm.urls(for: .downloadsDirectory, in: .userDomainMask).first,
+            URL(fileURLWithPath: "/Applications", isDirectory: true),
         ].compactMap { $0 }
     }()
 
     private var systemLocations: [URL] { Self.systemLocationURLs }
+
+    /// Pinned bez sistemskih lokacija — sprečava duplikat Favorites/Pinned
+    /// (npr. /Applications pinovan pre nego što je postao deo Favorites).
+    private var visiblePinned: [URL] {
+        favorites.pinnedURLs.filter { !Self.isSystemLocation($0) }
+    }
+
+    /// Da li je URL sistemska Favorites lokacija (Home/Desktop/Documents/
+    /// Downloads/Applications)? Koristi se i iz FileContextMenu da se za
+    /// sistemske foldere ne nudi "Add to Sidebar".
+    static func isSystemLocation(_ url: URL) -> Bool {
+        systemLocationURLs.contains(where: { ffSamePath($0, url) })
+    }
 
     private func loadRecent() {
         recentFolders = (UserDefaults.standard.stringArray(forKey: "recentFolders") ?? [])

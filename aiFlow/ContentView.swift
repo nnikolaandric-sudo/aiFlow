@@ -701,11 +701,28 @@ struct ContentView: View {
         }
     }
 
+    private var withFilePaletteEvents: some View {
+        withCommandEvents
+        .onReceive(NotificationCenter.default.publisher(for: .ffOpenFilePalette)) { _ in
+            FileCommandPaletteWindowManager.shared.open(initialFolder: currentPath)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ffOpenPaletteURL)) { n in
+            guard let url = n.object as? URL else { return }
+            navigate(url)
+        }
+        .onChange(of: currentPath) { _, folder in
+            FileCommandPaletteWindowManager.shared.setCurrentFolder(folder)
+        }
+        .onAppear {
+            FileCommandPaletteWindowManager.shared.setCurrentFolder(currentPath)
+        }
+    }
+
     /// Git notifications live in their own chain: the command-event chain
     /// above already sits at the type-checker's complexity budget (same
     /// reason as withTabEvents below).
     private var withGitEvents: some View {
-        withCommandEvents
+        withFilePaletteEvents
         // Git: desni klik / prečica traži preview (Diff/History/Repo).
         // Preview se otvara (showPreview=true), fajl se selektuje ili se
         // navigira u njegov folder — sam tab preuzima FilePreviewPanel.
@@ -885,6 +902,9 @@ struct ContentView: View {
 
     var body: some View {
         withServiceEvents
+        // ⌘K palette + File ▸ PDF Tools ask for the selection (CommandPalette.swift).
+        .modifier(FFSelectionBridge(selection: { primarySelectedItems.map(\.url) },
+                                    folder: { currentPath }))
         .sheet(isPresented: Binding(
             get: { errorMsg != nil },
             set: { if !$0 {
@@ -1199,12 +1219,9 @@ struct ContentView: View {
             localSearchKey = ""
             maybeStartFolderSizing()
         } else {
-            // Pretraga preuzima primarni prikaz — otkaži run da ne troši
-            // I/O u pozadini; novi kreće kad se pretraga obriše.
             folderSizeRuns.next()
             folderSizingActive = false
             guard searchEngine.selectedScope == .thisFolder else {
-                // Spotlight/recursive scope owns the results — drop stale local rank.
                 localRankWork?.cancel(); localRankWork = nil
                 localSearchGen &+= 1
                 localSearchFiles = []
@@ -1246,7 +1263,10 @@ struct ContentView: View {
     /// Shortcut: ⌥⌘L (File meni). Više fajlova/foldera → jedan .zip (limiti
     /// SecureShareLimits); detaljna provera veličine tek u pozadini uz toast.
     private func quickLinkSelected() {
-        let urls = displayFiles.filter { selectedIDs.contains($0.id) }.map(\.url)
+        quickLink(urls: displayFiles.filter { selectedIDs.contains($0.id) }.map(\.url))
+    }
+
+    private func quickLink(urls: [URL]) {
         guard !urls.isEmpty else {
             showToast(ActionFeedback(icon: "exclamationmark.circle",
                                      message: "Select at least one file or folder first"))

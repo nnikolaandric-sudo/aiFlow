@@ -440,10 +440,11 @@ final class MailFilingService {
                 let desc = AIContentReader.describe(url, size: Int64(a.data.count), modified: nil,
                                                     maxChars: 4000, includeContent: true)
                 let ext = (a.filename as NSString).pathExtension.lowercased()
+                let preview = desc.preview.map { ai.redactPersonalData ? AIPrivacy.redact($0) : $0 }
                 flat.append(AIFileEntry(url: url, name: name,
                                         kind: ext.isEmpty ? "file" : ext.uppercased(),
                                         size: Int64(a.data.count),
-                                        preview: desc.preview, details: desc.details))
+                                        preview: preview, details: desc.details))
             }
         }
         let jevPath = AIService.isJevModel(model)

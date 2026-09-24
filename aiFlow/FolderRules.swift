@@ -794,7 +794,10 @@ final class FolderRuleAIGate {
         guard isOpen, remaining > 0 else { skipped += 1; return nil }
         remaining -= 1
         used += 1
-        let excerpt = sendExcerpt ? String(file.text.prefix(1500)) : ""
+         let rawExcerpt = sendExcerpt ? String(file.text.prefix(1500)) : ""
+         let redact = UserDefaults.standard.object(forKey: "ffAIRedactPersonalData") as? Bool ?? true
+         let excerpt = redact ? AIPrivacy.redact(rawExcerpt) : rawExcerpt
+
         var user = "File name: \(file.name)\nKind: \(file.type?.localizedDescription ?? file.ext)\nSize: \(ByteCountFormatter.string(fromByteCount: file.size, countStyle: .file))"
         if !excerpt.isEmpty { user += "\nText excerpt: \(excerpt)" }
         user += "\n\nQuestion: is this file \(description)? Reply with only the JSON {\"match\": true} or {\"match\": false}."
@@ -859,6 +862,20 @@ enum FolderRulesAI {
     /// Jedan sinhroni poziv (samo van glavne niti). Poštuje prekidač, dnevni
     /// limit i mjesečni limit AI Organizera; svaki poziv se broji.
     static func complete(system: String, user: String, maxTokens: Int) throws -> String {
+        let startedAt = Date()
+        var success = false
+        var outputChars = 0
+        var promptTokens = 0
+        var completionTokens = 0
+        var costUSD = 0.0
+        defer {
+            AIExecutionLog.shared.record(task: "folder_rules", model: onMain { AIService.shared.extractionModelID },
+                                         fileCount: 1, inputChars: system.count + user.count,
+                                         outputChars: outputChars, promptTokens: promptTokens,
+                                         completionTokens: completionTokens, costUSD: costUSD,
+                                         latencyMS: Int(Date().timeIntervalSince(startedAt) * 1_000),
+                                         success: success, payload: system + "\n" + user)
+        }
         if let why = FolderRulesSettings.aiBlockReason() { throw Failure.blocked(why) }
         let (model, spent, cap) = onMain {
             (AIService.shared.extractionModelID, AIService.shared.monthSpend(), AIService.shared.monthlyCapUSD)
@@ -892,16 +909,23 @@ enum FolderRulesAI {
             if let usage = json?["usage"] as? [String: Any] {
                 let pt = (usage["prompt_tokens"] as? NSNumber)?.intValue ?? 0
                 let ct = (usage["completion_tokens"] as? NSNumber)?.intValue ?? 0
-                let charged = (usage["cost"] as? NSNumber)?.doubleValue
-                DispatchQueue.main.async {
-                    let ai = AIService.shared
-                    ai.recordSpend(charged ?? ai.costUSD(promptTokens: pt, completionTokens: ct, model: model))
-                }
+                 let charged = (usage["cost"] as? NSNumber)?.doubleValue
+                 promptTokens = pt
+                 completionTokens = ct
+                 costUSD = charged ?? 0
+                 DispatchQueue.main.async {
+                     let ai = AIService.shared
+                     ai.recordSpend(charged ?? ai.costUSD(promptTokens: pt, completionTokens: ct, model: model))
+                 }
+
             }
             let message = ((json?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any])
-            let content = (message?["content"] as? String) ?? ""
-            guard !content.isEmpty else { throw Failure.badReply }
-            return content
+             let content = (message?["content"] as? String) ?? ""
+             guard !content.isEmpty else { throw Failure.badReply }
+             outputChars = content.count
+             success = true
+             return content
+
         }
         throw lastError
     }

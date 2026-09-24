@@ -5,6 +5,97 @@ relative to the 1.0 release.
 
 ---
 
+## 2.2.0 (2026-09-24)
+
+Today, the ⌘K command palette, PDF Tools and Shortcuts actions; AI privacy
+and observability; the ⇧⌘F file palette.
+
+### Today: one screen for what needs you
+
+- **File ▸ Today (⌘0)**, the new **Today** row at the top of the sidebar
+  (badge = things due), the ⌘K palette or the Shortcuts action *Open Today*.
+- **Overdue / Today / Next 7 Days** across every workspace: tasks, reminders,
+  workspace deadlines and Mail Inbox invoice/expiry reminders. Tick a task or
+  reminder done, snooze a reminder (1 hour, tomorrow 9:00, next week), move an
+  overdue task to today, jump to its document in the browser.
+- **Documents** (review requested, review due this week, expiring within 30
+  days), **Waiting for Files** (open file requests), **Mail Inbox** (mail to
+  confirm / classify), **Auto-Sorted Today** (every Folder Rules move with
+  Undo) and **Shared Links** (expiring within 3 days, or signed via link this
+  week).
+- Owns no data: everything is computed from the existing stores, and every
+  button goes through the same store APIs as the Workspace panel, Mail Inbox
+  and the Folder Rules window.
+
+### Command palette (⌘K)
+
+- **View ▸ Command Palette… (⌘K)** — every menu command (most of them now live
+  in ⋯ or the right-click since the toolbar was slimmed down), actions for the
+  current selection (PDF tools, sign, secure link, task, reminder, copy path,
+  auto-sort rules, workspace on/off), places (Favorites, pinned, recent
+  folders), workspaces and open tasks. ↑↓ ⏎ Esc; shortcuts shown per row.
+- Finds English titles fuzzily and Bosnian/Croatian/Serbian keywords by word
+  prefix: „spoji" → Combine into PDF, „danas" → Today, „potpis" → Sign.
+  Selection actions come first; the empty palette suggests them plus the last
+  six commands used.
+
+### PDF Tools
+
+- **Right-click ▸ PDF Tools**, **File ▸ PDF Tools…**, ⌘K and **Finder ▸
+  Services** (*Combine into PDF with aiFlow*, *Make PDF Searchable with
+  aiFlow*): combine PDFs and images in any order, images → PDF (A4, in the
+  image's orientation), split into pages, extract pages („1-3, 5, 8-"),
+  rotate, compress (images re-saved as JPEG for screens — a photo-heavy test
+  PDF went 15.0 MB → 1.8 MB; refuses when it wouldn't save 5%), and **Make
+  Searchable (OCR)** — PDFKit's on-device Vision OCR adds a text layer to
+  scanned pages only; pages with text, links and annotations stay as they are.
+- The original is never changed: results are new files next to it
+  („Ugovor (compressed).pdf", then „… 2.pdf").
+
+### Shortcuts, Spotlight and Siri (App Intents)
+
+- Shortcuts actions: **Open Today**, **Combine into PDF**, **Make PDF
+  Searchable**, **Compress PDF** (hand back files, usable as Finder Quick
+  Actions), **Sort Folder Now** (runs a folder's auto-sort rules; moves are
+  undoable in Today) and **Add Task** (to the workspace of a file or folder,
+  linked to it, optional due date). *Open Today* is also an App Shortcut
+  („What's due in aiFlow"), so Spotlight and Siri know it without setup.
+- No Xcode on the build Mac: `build-local.sh` writes
+  `Contents/Resources/Metadata.appintents` with
+  `tools/appintents/make_metadata.py` (the format of Apple's own apps; mangled
+  type names read from the binary). Keep its table in sync with
+  `AppIntents.swift`.
+
+### AI privacy and observability
+
+- **Personal data is redacted before AI sees it** (Settings ▸ AI, on by
+  default): e-mail addresses, phone numbers and account-like values in
+  document excerpts become placeholders before anything reaches OpenRouter —
+  AI Organizer, Folder Rules AI and Mail Inbox AI alike.
+- **AI Evaluation & Observability** (Settings ▸ AI): a local log of every AI
+  run — task, model, files, tokens, cost, latency, success — plus a payload
+  hash; never file contents, keys or names. Kept in Application Support
+  (last 250 runs), clearable.
+- **AI Organizer shows what will be sent** before you run it (names, sizes,
+  and whether text excerpts go along). Extraction also asks the model for a
+  per-field confidence and the source page when it can tell.
+
+### File palette (⇧⌘F)
+
+- A compact file finder docked above the status bar: search the whole Mac,
+  browse into folders, pick several files or folders, drag them out to Mail,
+  a browser or Finder, copy them or make a quick link. Recent files,
+  Downloads, pinned and recent folders are one click away.
+
+### Fixes
+
+- Pinned no longer repeats Home, Desktop, Documents, Downloads or
+  Applications that already sit in Favorites.
+- Copying files elsewhere in aiFlow clears a pending Cut, so Paste can't move
+  stale files.
+
+---
+
 ## 2.1.1 (2026-09-24)
 
 Reliability release: Git, Mail Inbox and Secure Share signatures.

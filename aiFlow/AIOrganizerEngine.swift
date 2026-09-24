@@ -146,11 +146,52 @@ struct AIDocFacts: Equatable {
     var language = ""
     /// Kupac / klijent (samo za razlikovanje od issuer-a, ne ide u ime).
     var buyer = ""
+    /// Model-reported confidence for extracted fields, keyed by canonical field name.
+    var fieldConfidence: [String: Double] = [:]
+    /// Page references supplied by the model for individual fields.
+    var sourcePages: [String: [Int]] = [:]
+    /// Short extraction warnings that should remain visible during review.
+    var warnings: [String] = []
+
+    init(type: String = "", issuer: String = "", number: String = "", date: String = "",
+         dueDate: String = "", currency: String = "", amount: String = "", title: String = "",
+         language: String = "", buyer: String = "", fieldConfidence: [String: Double] = [:],
+         sourcePages: [String: [Int]] = [:], warnings: [String] = []) {
+        self.type = type
+        self.issuer = issuer
+        self.number = number
+        self.date = date
+        self.dueDate = dueDate
+        self.currency = currency
+        self.amount = amount
+        self.title = title
+        self.language = language
+        self.buyer = buyer
+        self.fieldConfidence = fieldConfidence
+        self.sourcePages = sourcePages
+        self.warnings = warnings
+    }
 
     var isEmpty: Bool {
         type.isEmpty && issuer.isEmpty && number.isEmpty && date.isEmpty
             && dueDate.isEmpty && currency.isEmpty && amount.isEmpty
             && title.isEmpty && language.isEmpty && buyer.isEmpty
+    }
+
+    var averageConfidence: Double? {
+        guard !fieldConfidence.isEmpty else { return nil }
+        return fieldConfidence.values.reduce(0, +) / Double(fieldConfidence.count)
+    }
+
+    var confidenceSummary: String {
+        guard let averageConfidence else { return "" }
+        return "Confidence \(Int((averageConfidence * 100).rounded()))%"
+    }
+
+    var pageSummary: String {
+        let pages = Set(sourcePages.values.flatMap { $0 })
+        guard !pages.isEmpty else { return "" }
+        return "Pages " + pages.sorted().map(String.init).joined(separator: ", ")
     }
 
     /// "Invoice · Primjer d.o.o. · No. 2024-0317 · 2024-03-12 · due 2024-03-20 · 12.500 RSD · sr"
@@ -224,6 +265,9 @@ enum AIPlanParser {
     private static let titleKeys = ["title", "subject", "naziv", "predmet", "opis", "naslov", "usluga"]
     private static let languageKeys = ["language", "lang", "jezik", "locale"]
     private static let buyerKeys = ["buyer", "customer", "client", "kupac", "kupca", "klijent", "primalac", "bill_to"]
+    private static let confidenceKeys = ["confidence", "field_confidence", "fieldConfidence", "confidence_scores", "scores"]
+    private static let pageKeys = ["source_pages", "sourcePages", "page_references", "pageReferences", "provenance", "pages"]
+    private static let warningKeys = ["warnings", "warning", "extraction_warnings", "notes"]
     private static let factsKeys = ["doc", "facts", "document", "metadata", "extracted"]
     private static let deleteKeys = ["delete", "remove", "trash", "is_duplicate", "duplicate"]
     private static let duplicateOfKeys = ["duplicate_of", "duplicateOf", "keep", "kept", "original_file", "keep_file"]
@@ -401,6 +445,9 @@ enum AIPlanParser {
         func value(_ keys: [String]) -> String {
             (string(source, keys) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         }
+        let confidence = confidenceMap(in: source)
+        let pages = pageMap(in: source)
+        let warnings = stringArray(in: source, keys: warningKeys)
         return AIDocFacts(type: normalizedType(value(typeKeys)), issuer: value(issuerKeys),
                           number: value(numberKeys), date: normalizedDate(value(dateKeys)),
                           dueDate: normalizedDate(value(dueDateKeys)),
@@ -408,7 +455,78 @@ enum AIPlanParser {
                           amount: value(amountKeys),
                           title: value(titleKeys),
                           language: normalizedLanguage(value(languageKeys)),
-                          buyer: value(buyerKeys))
+                          buyer: value(buyerKeys), fieldConfidence: confidence,
+                          sourcePages: pages, warnings: warnings)
+    }
+
+    private static func confidenceMap(in source: [String: Any]) -> [String: Double] {
+        guard let values = source[confidenceKeys[0]] as? [String: Any] else {
+            let result: [String: Double] = [:]
+            for key in confidenceKeys.dropFirst() {
+                if let values = source[key] as? [String: Any] {
+                    return confidenceMap(in: values)
+                }
+            }
+            return result
+        }
+        let aliases: [String: String] = [
+            "document_type": "type", "doc_type": "type", "vrsta": "type",
+            "supplier": "issuer", "vendor": "issuer", "company": "issuer",
+            "invoice_number": "number", "document_number": "number", "broj": "number",
+            "issue_date": "date", "datum": "date", "due": "dueDate", "due_date": "dueDate",
+            "total": "amount", "iznos": "amount", "currency_code": "currency", "valuta": "currency",
+            "subject": "title", "predmet": "title", "lang": "language", "jezik": "language",
+            "customer": "buyer", "client": "buyer", "kupac": "buyer"
+        ]
+        var result: [String: Double] = [:]
+        for (key, value) in values {
+            let score: Double?
+            if let number = value as? NSNumber { score = number.doubleValue }
+            else if let text = value as? String { score = Double(text) }
+            else { score = nil }
+            guard let score else { continue }
+            let canonical = aliases[key.lowercased()] ?? key.lowercased()
+            result[canonical] = min(1, max(0, score))
+        }
+        return result
+    }
+
+    private static func pageMap(in source: [String: Any]) -> [String: [Int]] {
+        let pages = source[pageKeys[0]] as? [String: Any]
+            ?? pageKeys.dropFirst().compactMap { source[$0] as? [String: Any] }.first
+        guard let pages else { return [:] }
+        let aliases: [String: String] = [
+            "document_type": "type", "supplier": "issuer", "issuer": "issuer", "number": "number",
+            "date": "date", "issue_date": "date", "due_date": "dueDate", "due": "dueDate",
+            "total": "amount", "amount": "amount", "subject": "title", "title": "title",
+            "customer": "buyer", "client": "buyer", "buyer": "buyer"
+        ]
+        var result: [String: [Int]] = [:]
+        for (key, value) in pages {
+            let values: [Int]
+            if let array = value as? [Any] {
+                values = array.compactMap { ($0 as? NSNumber)?.intValue }
+            } else if let number = value as? NSNumber {
+                values = [number.intValue]
+            } else if let text = value as? String {
+                values = text.split(separator: ",").compactMap { Int($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+            } else {
+                values = []
+            }
+            let canonical = aliases[key.lowercased()] ?? key.lowercased()
+            if !values.isEmpty { result[canonical] = values }
+        }
+        return result
+    }
+
+    private static func stringArray(in source: [String: Any], keys: [String]) -> [String] {
+        for key in keys {
+            if let values = source[key] as? [Any] {
+                return values.compactMap { $0 as? String }.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+            }
+            if let value = source[key] as? String, !value.isEmpty { return [value] }
+        }
+        return []
     }
 
     /// Serbian labels → English type used in review ("faktura"/"račun" → "invoice").

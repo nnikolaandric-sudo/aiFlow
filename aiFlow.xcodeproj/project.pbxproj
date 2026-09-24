@@ -93,12 +93,18 @@
 		A1F1020000000000000000F /* WorkspaceModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F1010000000000000000F /* WorkspaceModels.swift */; };
 		A1F10200000000000000010 /* WorkspaceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F10100000000000000010 /* WorkspaceStore.swift */; };
 		A1F10200000000000000011 /* WorkspaceViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F10100000000000000011 /* WorkspaceViews.swift */; };
+		A1F10200000000000000012 /* TodayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F10100000000000000012 /* TodayView.swift */; };
+		A1F10200000000000000013 /* CommandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F10100000000000000013 /* CommandPalette.swift */; };
+		A1F10200000000000000014 /* PDFTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F10100000000000000014 /* PDFTools.swift */; };
+		A1F10200000000000000015 /* AppIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F10100000000000000015 /* AppIntents.swift */; };
+		A1F10300000000000000001 /* AIFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1F10300000000000000000 /* AIFeatures.swift */; };
 		6666666666660012 /* ShortcutsReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6666666666660011 /* ShortcutsReference.swift */; };
 		777777777777777777770002 /* SecureShareCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777777777777777777770001 /* SecureShareCore.swift */; };
 		777777777777777777770004 /* SecureShareRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777777777777777777770003 /* SecureShareRelay.swift */; };
 		777777777777777777770006 /* SecureShareUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777777777777777777770005 /* SecureShareUI.swift */; };
 		8888888888880002 /* MailAttachService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8888888888880001 /* MailAttachService.swift */; };
 		8888888888880004 /* MailAttachPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8888888888880003 /* MailAttachPicker.swift */; };
+		8888888888880006 /* FileCommandPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8888888888880005 /* FileCommandPalette.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -217,12 +223,18 @@
 		A1F1010000000000000000F /* WorkspaceModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceModels.swift; sourceTree = "<group>"; };
 		A1F10100000000000000010 /* WorkspaceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceStore.swift; sourceTree = "<group>"; };
 		A1F10100000000000000011 /* WorkspaceViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceViews.swift; sourceTree = "<group>"; };
+		A1F10100000000000000012 /* TodayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodayView.swift; sourceTree = "<group>"; };
+		A1F10100000000000000013 /* CommandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPalette.swift; sourceTree = "<group>"; };
+		A1F10100000000000000014 /* PDFTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFTools.swift; sourceTree = "<group>"; };
+		A1F10100000000000000015 /* AppIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIntents.swift; sourceTree = "<group>"; };
+		A1F10300000000000000000 /* AIFeatures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIFeatures.swift; sourceTree = "<group>"; };
 		6666666666660011 /* ShortcutsReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsReference.swift; sourceTree = "<group>"; };
 		777777777777777777770001 /* SecureShareCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureShareCore.swift; sourceTree = "<group>"; };
 		777777777777777777770003 /* SecureShareRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureShareRelay.swift; sourceTree = "<group>"; };
 		777777777777777777770005 /* SecureShareUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureShareUI.swift; sourceTree = "<group>"; };
 		8888888888880001 /* MailAttachService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailAttachService.swift; sourceTree = "<group>"; };
 		8888888888880003 /* MailAttachPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailAttachPicker.swift; sourceTree = "<group>"; };
+		8888888888880005 /* FileCommandPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCommandPalette.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -352,9 +364,15 @@
 				A1F1010000000000000000F /* WorkspaceModels.swift */,
 				A1F10100000000000000010 /* WorkspaceStore.swift */,
 				A1F10100000000000000011 /* WorkspaceViews.swift */,
+				A1F10100000000000000012 /* TodayView.swift */,
+				A1F10100000000000000013 /* CommandPalette.swift */,
+				A1F10100000000000000014 /* PDFTools.swift */,
+				A1F10100000000000000015 /* AppIntents.swift */,
+				A1F10300000000000000000 /* AIFeatures.swift */,
 				6666666666660011 /* ShortcutsReference.swift */,
 				8888888888880001 /* MailAttachService.swift */,
 				8888888888880003 /* MailAttachPicker.swift */,
+				8888888888880005 /* FileCommandPalette.swift */,
 				4444444444440001 /* PDFInspector.swift */,
 				DDDDDDDDDDDDDDDDDDDD0001 /* AceEditor */,
 			);
@@ -578,9 +596,15 @@
 				A1F1020000000000000000F /* WorkspaceModels.swift in Sources */,
 				A1F10200000000000000010 /* WorkspaceStore.swift in Sources */,
 				A1F10200000000000000011 /* WorkspaceViews.swift in Sources */,
+				A1F10200000000000000012 /* TodayView.swift in Sources */,
+				A1F10200000000000000013 /* CommandPalette.swift in Sources */,
+				A1F10200000000000000014 /* PDFTools.swift in Sources */,
+				A1F10200000000000000015 /* AppIntents.swift in Sources */,
+				A1F10300000000000000001 /* AIFeatures.swift in Sources */,
 				6666666666660012 /* ShortcutsReference.swift in Sources */,
 				8888888888880002 /* MailAttachService.swift in Sources */,
 				8888888888880004 /* MailAttachPicker.swift in Sources */,
+				8888888888880006 /* FileCommandPalette.swift in Sources */,
 				4444444444440002 /* PDFInspector.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -704,7 +728,7 @@
 				CODE_SIGN_ENTITLEMENTS = aiFlow/aiFlow.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -713,7 +737,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.1;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.finderflow.app;
 				PRODUCT_MODULE_NAME = FinderFlow;
 				PRODUCT_NAME = aiFlow;
@@ -730,7 +754,7 @@
 				CODE_SIGN_ENTITLEMENTS = aiFlow/aiFlow.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -739,7 +763,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.1;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.finderflow.app;
 				PRODUCT_MODULE_NAME = FinderFlow;
 				PRODUCT_NAME = aiFlow;
@@ -753,7 +777,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = aiFlowExtension/aiFlowExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = aiFlowExtension/Info.plist;
@@ -762,7 +786,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.1;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.finderflow.app.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -776,7 +800,7 @@
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = aiFlowExtension/aiFlowExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 11;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = aiFlowExtension/Info.plist;
@@ -785,7 +809,7 @@
 					"@executable_path/../Frameworks",
 					"@executable_path/../../../../Frameworks",
 				);
-				MARKETING_VERSION = 2.1.1;
+				MARKETING_VERSION = 2.2.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.finderflow.app.extension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
