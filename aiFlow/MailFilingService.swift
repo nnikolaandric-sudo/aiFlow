@@ -74,6 +74,7 @@ struct EmlDirectoryConnector: MailConnector {
 final class MailFilingService {
     static let shared = MailFilingService()
     private let workQueue = DispatchQueue(label: "FinderFlow.mailFiling", qos: .userInitiated)
+    private let syncLock = NSLock()
 
     struct FilingOutcome {
         var record: MailInboxRecord?
@@ -120,6 +121,16 @@ final class MailFilingService {
         }
     }
 
+    private func postRefresh(_ object: Any? = nil) {
+        if Thread.isMainThread {
+            NotificationCenter.default.post(name: .refreshDirectory, object: object)
+        } else {
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .refreshDirectory, object: object)
+            }
+        }
+    }
+
     // MARK: Sync (one folder in, everything filed)
 
     struct SyncResult {
@@ -136,11 +147,13 @@ final class MailFilingService {
     func sync(connector: MailConnector = EmlDirectoryConnector(),
               rules: [MailRule] = MailRuleStore.shared.rules,
               store: MailStore = .shared) -> SyncResult {
+        syncLock.lock()
+        defer { syncLock.unlock() }
         Self.ensureEmailDirs()
         var result = SyncResult()
         let fetched: [(email: ParsedEmail, attachments: [ParsedAttachment], source: URL?)]
         do {
-            fetched = try connector.fetchNew(since: store.lastSyncDate, seenIDs: store.allSeenMessageIDs())
+            fetched = try connector.fetchNew(since: store.lastSyncDateSnapshot(), seenIDs: store.allSeenMessageIDs())
         } catch {
             result.failed += 1
             return result
@@ -155,7 +168,7 @@ final class MailFilingService {
             }
         }
         if !fetched.isEmpty {
-            NotificationCenter.default.post(name: .refreshDirectory, object: Self.emailRoot())
+            postRefresh(Self.emailRoot())
         }
         // Sweep: .eml files whose Message-ID is already known (re-dropped,
         // re-sent) are archived to Done too, so Inbox never clogs with
@@ -182,12 +195,21 @@ final class MailFilingService {
         return swept
     }
 
-    private func archive(source: URL) {
-        let dest = Self.doneDir().appendingPathComponent(source.lastPathComponent)
-        if FileManager.default.fileExists(atPath: dest.path) {
-            try? FileManager.default.removeItem(at: source)
-            return
+    static func uniqueDestination(for source: URL, in directory: URL) -> URL {
+        let stem = source.deletingPathExtension().lastPathComponent
+        let ext = source.pathExtension
+        var candidate = directory.appendingPathComponent(source.lastPathComponent)
+        var index = 2
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            let name = ext.isEmpty ? "\(stem) (\(index))" : "\(stem) (\(index)).\(ext)"
+            candidate = directory.appendingPathComponent(name)
+            index += 1
         }
+        return candidate
+    }
+
+    private func archive(source: URL) {
+        let dest = Self.uniqueDestination(for: source, in: Self.doneDir())
         try? FileManager.default.moveItem(at: source, to: dest)
     }
 
@@ -231,6 +253,9 @@ final class MailFilingService {
             status = .linked
             suggestion.confidence = max(suggestion.confidence, 0.8)
             if suggestion.category.isEmpty { suggestion.category = "Correspondence" }
+        } else if status == .needsClassification && fresh.isEmpty {
+            status = .linked
+            suggestion.confidence = max(suggestion.confidence, 0.8)
         }
         // Stage bytes only for mails that wait in the Inbox (<70%): filed /
         // reviewed / linked mails already live on disk, staging them would
@@ -247,6 +272,10 @@ final class MailFilingService {
         if status == .filed || status == .reviewSuggested || status == .linked {
             let filed = fileAttachments(fresh, email: email, record: record, suggestion: suggestion, dmsRoot: dmsRoot)
             mutable.filedPaths = filed
+            let expected = fresh.count + 1
+            if expected > 0, filed.count < expected {
+                mutable.status = .reviewSuggested
+            }
         }
         mutable.reminders = MailRulesEngine.reminders(for: mutable.mail, suggestion: suggestion)
         store.update(mutable)
@@ -305,6 +334,9 @@ final class MailFilingService {
                 updated.status = suggestion.status
                 let filed = self.fileAttachments(attachments, email: nil, record: record, suggestion: suggestion, dmsRoot: dmsRoot)
                 updated.filedPaths = filed
+                if !attachments.isEmpty, filed.count < attachments.count {
+                    updated.status = .reviewSuggested
+                }
             }
             updated.reminders = MailRulesEngine.reminders(for: updated.mail, suggestion: suggestion)
             let frozen = updated
@@ -497,7 +529,7 @@ final class MailFilingService {
             if (try? fm.trashItem(at: URL(fileURLWithPath: path), resultingItemURL: nil)) == nil { failed += 1 }
         }
         store.update(previous)
-        NotificationCenter.default.post(name: .refreshDirectory, object: Self.emailRoot())
+        postRefresh(Self.emailRoot())
         return failed
     }
 
@@ -629,7 +661,7 @@ final class MailFilingService {
                 try? FileManager.default.removeItem(atPath: p)
             }
         }
-        NotificationCenter.default.post(name: .refreshDirectory, object: dest)
+        postRefresh(dest)
         return (rec, res)
     }
 
@@ -674,7 +706,7 @@ final class MailFilingService {
             } catch { continue }
         }
         if !paths.isEmpty {
-            NotificationCenter.default.post(name: .refreshDirectory, object: folder)
+            postRefresh(folder)
         }
         return paths
     }
@@ -719,8 +751,15 @@ final class MailFilingService {
     /// are already in the DMS). Returns reclaimed bytes.
     @discardableResult
     static func purgeStaging(store: MailStore = .shared) -> Int64 {
-        let needed = Set(store.records.filter { $0.status == .needsClassification }
-            .flatMap(\.mail.attachments).map(\.sha256).filter { !$0.isEmpty })
+        let needed = Set(store.recordsSnapshot().filter { record in
+            if record.status == .needsClassification { return true }
+            guard record.status == .reviewSuggested else { return false }
+            let filedAttachments = record.filedPaths.filter {
+                URL(fileURLWithPath: $0).pathExtension.lowercased() != "eml"
+                    && FileManager.default.fileExists(atPath: $0)
+            }
+            return filedAttachments.count < record.mail.attachments.count
+        }.flatMap(\.mail.attachments).map(\.sha256).filter { !$0.isEmpty })
         let dir = stagingDir()
         let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: [.fileSizeKey])) ?? []
         var freed: Int64 = 0

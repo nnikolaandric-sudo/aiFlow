@@ -768,6 +768,8 @@ struct ContentView: View {
     /// Git preview zahtjev: otvori preview panel i dovedi URL u selekciju.
     private func handleGitPreviewRequest(_ url: URL) {
         showPreview = true
+        searchEngine.query = ""
+        activeTagFilter = nil
         // Sam repo folder (ili tekući folder) — samo otvori preview,
         // FilePreviewPanel pokazuje Repo tab preko currentFolder-a.
         if ffSamePath(url, currentPath) { return }
@@ -2184,7 +2186,10 @@ struct ContentView: View {
         withAnimation(.easeOut(duration: 0.25)) { toastItem = nil }
     }
 
-    func reload() { _reload(then: nil) }
+    func reload() {
+        GitService.shared.refresh(for: currentPath)
+        _reload(then: nil)
+    }
 
     private func _reload(then: (() -> Void)?) {
         reloadGeneration &+= 1

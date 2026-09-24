@@ -31,8 +31,13 @@ export class Store {
   // stranicu) i gurne novi hash/size. Dozvoljeno samo uz postojeći approval,
   // samo hash/size se menjaju — ništa drugo.
   async seal(id, device, fileHash, fileSize) {
-    return this.one(`UPDATE shares SET file_hash=$3, file_size=$4
-      WHERE id=$1 AND device_id=$2 AND revoked_at IS NULL AND approval_name IS NOT NULL RETURNING *`, [id,device,fileHash,fileSize]);
+    return this.one(`UPDATE shares SET file_hash=$3, file_size=$4, sealed_at=COALESCE(sealed_at,$5), seal_error=NULL
+      WHERE id=$1 AND device_id=$2 AND revoked_at IS NULL AND approval_name IS NOT NULL
+      AND (sealed_at IS NULL OR (file_hash=$3 AND file_size=$4)) RETURNING *`, [id,device,fileHash,fileSize,Date.now()]);
+  }
+  async markSealError(id, device, error) {
+    return this.one(`UPDATE shares SET seal_error=$3
+      WHERE id=$1 AND device_id=$2 AND revoked_at IS NULL AND approval_name IS NOT NULL AND sealed_at IS NULL RETURNING *`, [id,device,error]);
   }
   async session(s) {
     await this.db.query('INSERT INTO share_sessions(id,secret_hash,share_id,expires_at) VALUES($1,$2,$3,$4)', [s.id,s.secret_hash,s.share_id,s.expires_at]);

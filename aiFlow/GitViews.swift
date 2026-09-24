@@ -93,6 +93,7 @@ private struct GitDiffLine: View {
 struct GitFileDiffView: View {
     let url: URL
     @ObservedObject var git = GitService.shared
+    @State private var loadToken = 0
     @State private var diffText: String? = nil
     @State private var isLoading = true
     @State private var actionMsg: String? = nil
@@ -174,12 +175,14 @@ struct GitFileDiffView: View {
     }
 
     private func load() {
+        loadToken &+= 1
+        let token = loadToken
         isLoading = true
         diffText = nil
         let target = url
         git.diffText(for: target) { text in
             DispatchQueue.main.async {
-                guard target == self.url else { return }
+                guard token == self.loadToken, target == self.url else { return }
                 self.diffText = text
                 self.isLoading = false
             }
@@ -224,10 +227,12 @@ struct GitHistoryView: View {
     let url: URL
     let root: URL
     @ObservedObject var git = GitService.shared
+    @State private var loadToken = 0
     @State private var commits: [GitCommit]? = nil
     @State private var selected: GitCommit? = nil
     @State private var commitDiff: String? = nil
     @State private var diffLoading = false
+    @State private var diffToken = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -301,9 +306,12 @@ struct GitHistoryView: View {
         .onChange(of: url.path) { _, _ in load() }
         .onChange(of: selected) { _, c in
             guard let c else { commitDiff = nil; return }
+            diffToken &+= 1
+            let token = diffToken
             diffLoading = true
             git.showCommit(c.id, in: root) { text in
                 DispatchQueue.main.async {
+                    guard token == self.diffToken, self.selected?.id == c.id else { return }
                     diffLoading = false
                     commitDiff = text
                 }
@@ -312,13 +320,16 @@ struct GitHistoryView: View {
     }
 
     private func load() {
+        loadToken &+= 1
+        let token = loadToken
+        diffToken &+= 1
         commits = nil
         selected = nil
         commitDiff = nil
         let target = url
         git.history(for: target) { list in
             DispatchQueue.main.async {
-                guard target == self.url else { return }
+                guard token == self.loadToken, target == self.url else { return }
                 self.commits = list
             }
         }
@@ -354,6 +365,10 @@ struct GitRepoPanel: View {
             commitBox
             Divider().opacity(0.6)
             remotes
+            if let error = git.lastError {
+                Text(error).font(.caption).foregroundStyle(.red)
+                    .lineLimit(3).padding(.horizontal, 10).padding(.vertical, 4)
+            }
             if let msg = actionMsg {
                 Text(msg).font(.caption).foregroundStyle(.secondary)
                     .lineLimit(4).padding(.horizontal, 10).padding(.vertical, 4)
@@ -459,6 +474,10 @@ struct GitRepoPanel: View {
         }
     }
 
+    private var stagedChanges: [GitFileStatus] {
+        changes.filter(\.staged)
+    }
+
     private var commitBox: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Commit message").font(.caption).foregroundStyle(.secondary)
@@ -466,7 +485,7 @@ struct GitRepoPanel: View {
                 .textFieldStyle(.roundedBorder)
             Button("Commit") { commit() }
                 .buttonStyle(.borderedProminent).controlSize(.small)
-                .disabled(commitMsg.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isBusy || changes.isEmpty)
+                .disabled(commitMsg.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isBusy || stagedChanges.isEmpty)
         }
         .padding(10)
     }

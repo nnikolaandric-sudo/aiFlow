@@ -34,18 +34,29 @@ struct SecureShareRecord: Codable, Identifiable {
     var requireSignature: Bool = false
     var approvalName: String? = nil
     var approvalAt: Double? = nil
+    var sealedAt: Double? = nil
+    var sealError: String? = nil
+
+    var signatureStatus: String {
+        guard approvalName != nil else { return "awaiting_signature" }
+        guard mimeType == "application/pdf" else { return "signature_saved" }
+        if sealedAt != nil { return "sealed" }
+        if let sealError, !sealError.isEmpty { return "signature_failed" }
+        return "sealing"
+    }
 
     enum CodingKeys: String, CodingKey {
         case id, filename, mimeType, size, fileHash, bookmark, createdAt, expiresAt
         case allowPreview, allowDownload, maxDownloads, status
-        case requireSignature, approvalName, approvalAt
+        case requireSignature, approvalName, approvalAt, sealedAt, sealError
     }
-    init(id: String, filename: String, mimeType: String, size: Int64, fileHash: String, bookmark: Data, createdAt: Double, expiresAt: Double?, allowPreview: Bool, allowDownload: Bool, maxDownloads: Int?, status: String, requireSignature: Bool = false, approvalName: String? = nil, approvalAt: Double? = nil) {
+    init(id: String, filename: String, mimeType: String, size: Int64, fileHash: String, bookmark: Data, createdAt: Double, expiresAt: Double?, allowPreview: Bool, allowDownload: Bool, maxDownloads: Int?, status: String, requireSignature: Bool = false, approvalName: String? = nil, approvalAt: Double? = nil, sealedAt: Double? = nil, sealError: String? = nil) {
         self.id = id; self.filename = filename; self.mimeType = mimeType; self.size = size
         self.fileHash = fileHash; self.bookmark = bookmark; self.createdAt = createdAt
         self.expiresAt = expiresAt; self.allowPreview = allowPreview; self.allowDownload = allowDownload
         self.maxDownloads = maxDownloads; self.status = status
         self.requireSignature = requireSignature; self.approvalName = approvalName; self.approvalAt = approvalAt
+        self.sealedAt = sealedAt; self.sealError = sealError
     }
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -64,6 +75,8 @@ struct SecureShareRecord: Codable, Identifiable {
         requireSignature = try c.decodeIfPresent(Bool.self, forKey: .requireSignature) ?? false
         approvalName = try c.decodeIfPresent(String.self, forKey: .approvalName)
         approvalAt = try c.decodeIfPresent(Double.self, forKey: .approvalAt)
+        sealedAt = try c.decodeIfPresent(Double.self, forKey: .sealedAt)
+        sealError = try c.decodeIfPresent(String.self, forKey: .sealError)
     }
     /// "Ugovor.pdf" + "Marko" → "Ugovor (signed by Marko).pdf".
     /// Čuva ekstenziju, skida kontrolne karaktere i / \ : * ? " < > |,

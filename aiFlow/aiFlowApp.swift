@@ -395,13 +395,16 @@ struct FinderFlowCommands: Commands {
             Toggle("Launch at Login", isOn: Binding(
                 get: { launchAtLogin },
                 set: { newValue in
-                    launchAtLogin = newValue
                     if #available(macOS 13.0, *) {
-                        if newValue {
-                            try? SMAppService.mainApp.register()
-                        } else {
-                            try? SMAppService.mainApp.unregister()
+                        do {
+                            if newValue { try SMAppService.mainApp.register() }
+                            else { try SMAppService.mainApp.unregister() }
+                            launchAtLogin = SMAppService.mainApp.status == .enabled
+                        } catch {
+                            launchAtLogin = SMAppService.mainApp.status == .enabled
                         }
+                    } else {
+                        launchAtLogin = newValue
                     }
                 }
             ))

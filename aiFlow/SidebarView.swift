@@ -182,7 +182,7 @@ struct SidebarView: View {
                 Section {
                     ForEach(cachedCloudFolders, id: \.self) { url in
                         sidebarDropRow(url: url, tag: SidebarItem.location(url)) {
-                            SidebarRow(url: url)
+                            SidebarRow(url: url, subtitle: "Local folder")
                                 .onTapGesture { go(url) }
                                 .contextMenu {
                                     if favorites.isPinned(url) {
@@ -543,7 +543,12 @@ final class RecentStore {
 
 struct SidebarRow: View {
     let url: URL
+    let subtitle: String?
     @Environment(\.ffCompactRows) private var compact
+    init(url: URL, subtitle: String? = nil) {
+        self.url = url
+        self.subtitle = subtitle
+    }
     private var displayName: String { Self.cloudDisplayName(for: url) }
     /// Lepa imena za cloud foldere: "GoogleDrive-user@gmail.com" → "Google Drive",
     /// "com~apple~CloudDocs" → "iCloud Drive". Obični folderi zadržavaju svoje ime.
@@ -560,10 +565,18 @@ struct SidebarRow: View {
     }
     var body: some View {
         Label {
-            Text(displayName)
-                .font(.system(size: 13))
-                .lineLimit(1)
-                .truncationMode(.middle)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(displayName)
+                    .font(.system(size: 13))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
         } icon: {
             URLIconView(url: url, isDirectory: true, isPackage: false, size: 16)
                 .frame(width: 20, height: 20)

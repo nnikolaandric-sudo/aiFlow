@@ -490,13 +490,13 @@ struct FileBackgroundMenuContent: View {
 struct GitMenuContent: View {
     let urls: [URL]
     @ObservedObject var git: GitService = .shared
+    @State private var errorMessage: String?
     var onReload: () -> Void = {}
 
     private var singleURL: URL? { urls.count == 1 ? urls.first : nil }
 
     var body: some View {
         Menu {
-            // View changes — otvara Preview na Diff tabu.
             Button {
                 if let u = singleURL { GitUIRequest.shared.showDiff(for: u) }
                 else if let first = urls.first { GitUIRequest.shared.showRepo(for: first) }
@@ -514,10 +514,20 @@ struct GitMenuContent: View {
 
             Divider()
 
-            Button { git.stage(urls) { _, _ in onReload() } } label: {
+            Button {
+                git.stage(urls) { ok, message in
+                    errorMessage = ok ? nil : message
+                    onReload()
+                }
+            } label: {
                 Label(urls.count == 1 ? "Stage" : "Stage \(urls.count) Items", systemImage: "plus.circle")
             }
-            Button { git.unstage(urls) { _, _ in onReload() } } label: {
+            Button {
+                git.unstage(urls) { ok, message in
+                    errorMessage = ok ? nil : message
+                    onReload()
+                }
+            } label: {
                 Label(urls.count == 1 ? "Unstage" : "Unstage \(urls.count) Items", systemImage: "minus.circle")
             }
             Button(role: .destructive) { confirmDiscard(urls: urls) } label: {
@@ -535,8 +545,14 @@ struct GitMenuContent: View {
             Divider()
 
             Button {
-                if let u = singleURL, git.copyGithubLink(for: u) {
-                    NotificationCenter.default.post(name: .ffCopyPathFeedback, object: nil)
+                if let u = singleURL {
+                    git.copyGithubLink(for: u) { copied in
+                        if copied {
+                            NotificationCenter.default.post(name: .ffCopyPathFeedback, object: nil)
+                        } else {
+                            errorMessage = "Copy GitHub link failed."
+                        }
+                    }
                 }
             } label: {
                 Label("Copy GitHub Link", systemImage: "link")
@@ -554,6 +570,14 @@ struct GitMenuContent: View {
         } label: {
             Label("Git", systemImage: "arrow.triangle.branch")
         }
+        .alert("Git action failed", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { errorMessage = nil }
+        } message: {
+            Text(errorMessage ?? "Unknown Git error")
+        }
     }
 
     private func confirmDiscard(urls: [URL]) {
@@ -566,6 +590,9 @@ struct GitMenuContent: View {
         alert.addButton(withTitle: "Discard")
         alert.addButton(withTitle: "Cancel")
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        git.discard(urls, includeUntracked: true) { _, _ in onReload() }
+        git.discard(urls, includeUntracked: true) { ok, message in
+            errorMessage = ok ? nil : message
+            onReload()
+        }
     }
 }

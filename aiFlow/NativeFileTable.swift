@@ -349,7 +349,30 @@ struct NativeFileTable: NSViewRepresentable {
             if #available(macOS 14.4, *) {
                 return NSHostingMenu(rootView: parent.actions.menu(ids))
             }
+            if #available(macOS 14.0, *) {
+                let menu = NSMenu()
+                let open = NSMenuItem(title: "Open", action: #selector(openMenuItem(_:)), keyEquivalent: "")
+                open.target = self
+                open.representedObject = ids
+                menu.addItem(open)
+                let quickLook = NSMenuItem(title: "Quick Look", action: #selector(quickLookMenuItem(_:)), keyEquivalent: "")
+                quickLook.target = self
+                quickLook.representedObject = ids
+                menu.addItem(quickLook)
+                return menu
+            }
             return nil
+        }
+
+        @objc private func openMenuItem(_ sender: NSMenuItem) {
+            guard let ids = sender.representedObject as? Set<String>, let first = ids.first,
+                  let item = rows.first(where: { $0.id == first }) else { return }
+            inCallback { parent?.actions.onOpen(item) }
+        }
+
+        @objc private func quickLookMenuItem(_ sender: NSMenuItem) {
+            guard let ids = sender.representedObject as? Set<String> else { return }
+            inCallback { parent?.actions.onQuickLook(ids) }
         }
 
         // MARK: Rename

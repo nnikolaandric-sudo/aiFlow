@@ -127,7 +127,7 @@ struct IconsView: View {
                                             }
                                         }
                                         .accessibilityElement(children: .ignore)
-                                        .accessibilityLabel("\(item.name), \(item.kind)")
+                                         .accessibilityLabel("\(item.name), \(item.kind), \(GitService.shared.status(for: item.url)?.state.label ?? "clean")")
                                         .accessibilityAddTraits(isSel ? [.isButton, .isSelected] : .isButton)
                                         .contextMenu { iconContextMenu(item: item, selectedItems: selectedItems) }
                                         .id(item.id)

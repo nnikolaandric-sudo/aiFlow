@@ -387,35 +387,70 @@ struct MailInboxView: View {
         }
     }
 
+    private func fileEditedSuggestion(_ record: MailInboxRecord, suggestion: MailFilingSuggestion) -> (MailInboxRecord, String?) {
+        var updated = record
+        updated.suggestion = suggestion
+        let existingPaths = record.filedPaths.filter { FileManager.default.fileExists(atPath: $0) }
+        if record.mail.attachments.isEmpty {
+            updated.status = .linked
+            updated.filedPaths = existingPaths
+            return (updated, nil)
+        }
+
+        let existingAttachments = existingPaths.filter {
+            URL(fileURLWithPath: $0).pathExtension.lowercased() != "eml"
+        }
+        if existingAttachments.count >= record.mail.attachments.count {
+            updated.filedPaths = existingPaths
+            updated.status = record.status == .reviewSuggested ? .reviewSuggested : .filed
+            return (updated, nil)
+        }
+
+        let staged = record.mail.attachments.compactMap { meta -> ParsedAttachment? in
+            guard let data = MailFilingService.stagedData(sha: meta.sha256) else { return nil }
+            return ParsedAttachment(filename: meta.filename, mimeType: meta.mimeType, data: data)
+        }
+        guard !staged.isEmpty else {
+            updated.filedPaths = existingPaths
+            updated.status = .reviewSuggested
+            return (updated, "Couldn't read the staged attachments. Import the mail again, then retry.")
+        }
+
+        let filed = MailFilingService.shared.fileAttachments(
+            staged, email: nil, record: record, suggestion: suggestion, dmsRoot: dmsRoot)
+        var paths = existingPaths
+        for path in filed where !paths.contains(path) { paths.append(path) }
+        updated.filedPaths = paths
+        let filedAttachments = paths.filter {
+            URL(fileURLWithPath: $0).pathExtension.lowercased() != "eml"
+        }
+        if filedAttachments.count >= record.mail.attachments.count {
+            updated.status = .filed
+            return (updated, nil)
+        }
+        updated.status = .reviewSuggested
+        return (updated, "Filed \(filedAttachments.count) of \(record.mail.attachments.count) attachments. The mail stays in Review until every document is written.")
+    }
+
     // MARK: Actions
 
     private func accept(_ r: MailInboxRecord) {
-        var updated = r
-        updated.suggestion.confidence = max(r.suggestion.confidence, MailFilingPolicy.autoFileThreshold)
-        updated.status = r.mail.attachments.isEmpty ? .linked : .filed
-        if !r.mail.attachments.isEmpty, updated.filedPaths.isEmpty {
-            let staged = r.mail.attachments.compactMap { meta -> ParsedAttachment? in
-                guard let data = MailFilingService.stagedData(sha: meta.sha256) else { return nil }
-                return ParsedAttachment(filename: meta.filename, mimeType: meta.mimeType, data: data)
-            }
-            if !staged.isEmpty {
-                updated.filedPaths = MailFilingService.shared.fileAttachments(
-                    staged, email: nil, record: r, suggestion: updated.suggestion, dmsRoot: dmsRoot)
-            }
-        }
-        store.update(updated)
+        var suggestion = r.suggestion
+        suggestion.confidence = max(suggestion.confidence, MailFilingPolicy.autoFileThreshold)
+        let result = fileEditedSuggestion(r, suggestion: suggestion)
+        store.update(result.0)
+        ruleMessage = result.1
         editing = false
     }
 
     private func saveEdit(_ r: MailInboxRecord) {
-        var updated = r
         draft.confidence = max(draft.confidence, MailFilingPolicy.autoFileThreshold)
         draft.targetFolder = draft.targetFolder.isEmpty
             ? MailClassifier.targetFolder(category: draft.category, entity: draft.client.isEmpty ? draft.company : draft.client)
             : draft.targetFolder
-        updated.suggestion = draft
-        updated.status = r.mail.attachments.isEmpty ? .linked : .filed
-        store.update(updated)
+        let result = fileEditedSuggestion(r, suggestion: draft)
+        store.update(result.0)
+        ruleMessage = result.1
         editing = false
     }
 
@@ -431,14 +466,25 @@ struct MailInboxView: View {
     }
 
     /// Syncs Email/Inbox → pipeline → Email root (source .eml archived to Done).
-    private func syncInbox() {
-        let result = MailFilingService.shared.sync()
-        if result.ingested == 0 && result.duplicates == 0 {
-            ruleMessage = "Inbox is empty — drop .eml files into \(MailFilingService.inboxDir().path)"
-        } else {
-            ruleMessage = "Sync: \(result.ingested) new, \(result.duplicates) duplicates"
-            if let first = result.outcomes.compactMap(\.record).first {
-                selection = first.id
+    private func syncInbox(importSummary: String? = nil) {
+        guard busy == nil else { return }
+        busy = "Syncing mail…"
+        DispatchQueue.global(qos: .userInitiated).async {
+            let result = MailFilingService.shared.sync()
+            DispatchQueue.main.async {
+                busy = nil
+                let message: String
+                if result.ingested == 0 && result.duplicates == 0 && result.failed == 0 {
+                    message = "Inbox is empty — drop .eml files into \(MailFilingService.inboxDir().path)"
+                } else {
+                    var summary = ["\(result.ingested) new", "\(result.duplicates) duplicates"]
+                    if result.failed > 0 { summary.append("\(result.failed) failed") }
+                    message = "Sync: " + summary.joined(separator: ", ")
+                }
+                ruleMessage = [importSummary, message].compactMap { $0 }.joined(separator: " ")
+                if let first = result.outcomes.compactMap(\.record).first {
+                    selection = first.id
+                }
             }
         }
     }
@@ -534,16 +580,27 @@ struct MailInboxView: View {
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK else { return }
-        // Single path: copy into Email/Inbox, then sync like everything else.
-        MailFilingService.ensureEmailDirs()
-        let inbox = MailFilingService.inboxDir()
-        for url in panel.urls {
-            let dest = inbox.appendingPathComponent(url.lastPathComponent)
-            if !FileManager.default.fileExists(atPath: dest.path) {
-                try? FileManager.default.copyItem(at: url, to: dest)
+        busy = "Copying .eml files…"
+        let urls = panel.urls
+        DispatchQueue.global(qos: .userInitiated).async {
+            MailFilingService.ensureEmailDirs()
+            let inbox = MailFilingService.inboxDir()
+            var copied = 0
+            var failed = 0
+            for url in urls {
+                let dest = MailFilingService.uniqueDestination(for: url, in: inbox)
+                if (try? FileManager.default.copyItem(at: url, to: dest)) != nil {
+                    copied += 1
+                } else {
+                    failed += 1
+                }
+            }
+            DispatchQueue.main.async {
+                busy = nil
+                let importSummary = failed > 0 ? "Imported \(copied) files; \(failed) could not be copied." : nil
+                syncInbox(importSummary: importSummary)
             }
         }
-        syncInbox()
     }
 
     // MARK: Dates

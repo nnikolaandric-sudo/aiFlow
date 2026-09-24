@@ -46,8 +46,9 @@ try {
   });
  };
  let page;
- for(let i=0;i<20;i++){try{page=await request('/s');if(page.status===200)break;}catch{}await sleep(1500);}
- assert.equal(page?.status,200,'Public recipient page');assert.match(await page.text(),/FinderFlow/);
+  for(let i=0;i<20;i++){try{page=await request('/s');if(page.status===200)break;}catch{}await sleep(1500);}
+  assert.equal(page?.status,200,'Public recipient page');assert.match(await page.text(),/aiFlow/);
+
  assert.equal((await request('/v1/shares')).status,404,'No public owner/admin API');
  const session=async(password,originHeader=origin)=>request('/v1/share-session',{method:'POST',headers:{'Content-Type':'application/json',Origin:originHeader},body:JSON.stringify({token:share.token,password})});
  assert.equal((await session(undefined,'https://evil.example')).status,403);

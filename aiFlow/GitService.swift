@@ -115,6 +115,24 @@ enum GitPreviewTab: String {
 
 // MARK: - GitService
 
+private final class GitOutputBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var data = Data()
+
+    func set(_ value: Data) {
+        lock.lock()
+        data = value
+        lock.unlock()
+    }
+
+    func value() -> Data {
+        lock.lock()
+        let result = data
+        lock.unlock()
+        return result
+    }
+}
+
 /// Centralni Git sloj. Singleton ObservableObject — UI (bedževi, preview,
 /// status bar) ga posmatra, akcije idu preko njega.
 ///
@@ -141,9 +159,9 @@ final class GitService: ObservableObject {
     /// direktno (NativeFileTable AppKit ćelije) mogu da se relo-aduju.
     @Published var version: UInt = 0
 
-    /// Posljednji folder za koji je rađen refresh (da se ne vrti u krug).
     private var lastFolder: String = ""
     private var refreshWork: DispatchWorkItem?
+    private var refreshGeneration: UInt = 0
     private let lock = NSLock()
 
     private init() {}
@@ -204,7 +222,7 @@ final class GitService: ObservableObject {
     func relativePath(of file: URL, to root: URL) -> String {
         let r = root.standardizedFileURL.path
         let f = file.standardizedFileURL.path
-        guard f.hasPrefix(r) else { return file.lastPathComponent }
+        guard f == r || f.hasPrefix(r + "/") else { return file.lastPathComponent }
         var rel = String(f.dropFirst(r.count))
         if rel.hasPrefix("/") { rel.removeFirst() }
         return rel.isEmpty ? "." : rel
@@ -216,9 +234,13 @@ final class GitService: ObservableObject {
     /// brzo stepovanje kroz foldere ne pokreće git lavinu.
     func refresh(for folder: URL) {
         refreshWork?.cancel()
+        lock.lock()
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
+        lock.unlock()
         let target = folder
         let work = DispatchWorkItem { [weak self] in
-            self?.doRefresh(for: target)
+            self?.doRefresh(for: target, generation: generation)
         }
         refreshWork = work
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.25, execute: work)
@@ -227,31 +249,56 @@ final class GitService: ObservableObject {
     /// Sinhroni refresh bez debounce-a (poslije stage/commit/pull/push).
     func refreshNow(for folder: URL) {
         refreshWork?.cancel()
-        doRefresh(for: folder)
+        lock.lock()
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
+        lock.unlock()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.doRefresh(for: folder, generation: generation)
+        }
     }
 
-    private func doRefresh(for folder: URL) {
+    private func isCurrentRefresh(_ generation: UInt) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return refreshGeneration == generation
+    }
+
+    private func doRefresh(for folder: URL, generation: UInt) {
+        guard isCurrentRefresh(generation) else { return }
         guard Self.isGitAvailable else {
-            publish { $0.repoRoot = nil; $0.lastError = "Git nije instaliran." }
+            publishIfCurrent(generation) { $0.repoRoot = nil; $0.lastError = "Git nije instaliran." }
             return
         }
         guard let root = repoRoot(for: folder) else {
-            publish {
+            publishIfCurrent(generation) {
                 $0.repoRoot = nil; $0.branch = nil
-                $0.statuses = [:]; $0.branches = []
-                $0.ahead = 0; $0.behind = 0; $0.lastError = nil
+            $0.statuses = [:]
+            $0.branches = []
+            $0.ahead = 0; $0.behind = 0; $0.lastError = nil
+            $0.version &+= 1
             }
             return
         }
-        publish { $0.isLoading = true }
-        let (porcelain, code) = Self.runGit(in: root, args: ["status", "--porcelain=v1", "-uall", "-b"])
+        publishIfCurrent(generation) { $0.isLoading = true }
+        let (porcelain, code) = Self.runGit(in: root, args: ["status", "--porcelain=v1", "-uall", "-b", "-z"])
+        guard isCurrentRefresh(generation) else { return }
         guard code == 0 else {
-            publish { $0.isLoading = false; $0.lastError = porcelain.trimmingCharacters(in: .whitespacesAndNewlines) }
+            publishIfCurrent(generation) {
+                $0.repoRoot = root
+                $0.branch = nil
+                $0.statuses = [:]
+                $0.branches = []
+                $0.ahead = 0
+                $0.behind = 0
+                $0.isLoading = false
+                $0.lastError = porcelain.trimmingCharacters(in: .whitespacesAndNewlines)
+            }
             return
         }
         let parsed = Self.parseStatus(porcelain, root: root)
         let branchList = Self.parseBranches(in: root)
-        publish {
+        publishIfCurrent(generation) {
             $0.repoRoot = root
             $0.branch = parsed.branch
             $0.ahead = parsed.ahead
@@ -260,12 +307,20 @@ final class GitService: ObservableObject {
             $0.branches = branchList
             $0.isLoading = false
             $0.lastError = nil
+            $0.version &+= 1
         }
         lock.lock(); lastFolder = folder.path; lock.unlock()
     }
 
     private func publish(_ mutate: @escaping (GitService) -> Void) {
         DispatchQueue.main.async { mutate(self) }
+    }
+
+    private func publishIfCurrent(_ generation: UInt, _ mutate: @escaping (GitService) -> Void) {
+        DispatchQueue.main.async {
+            guard self.isCurrentRefresh(generation) else { return }
+            mutate(self)
+        }
     }
 
     // MARK: - Status query (za bedževe u browseru)
@@ -330,9 +385,9 @@ final class GitService: ObservableObject {
     }
 
     private func isUntracked(_ file: URL, root: URL) -> Bool {
-        statuses[file.standardizedFileURL.path]?.state == .untracked
-            || Self.runGit(in: root, args: ["ls-files", "--others", "--exclude-standard", "--", relativePath(of: file, to: root)]).0
-                .contains(relativePath(of: file, to: root))
+        let rel = relativePath(of: file, to: root)
+        let (out, code) = Self.runGit(in: root, args: ["ls-files", "--others", "--exclude-standard", "--", rel])
+        return code == 0 && out.split(separator: "\n").contains { $0 == Substring(rel) }
     }
 
     /// Diff jednog historijskog commita (`git show`).
@@ -366,19 +421,33 @@ final class GitService: ObservableObject {
     // MARK: - CommitManager (Stage / Unstage / Discard / Commit)
 
     func stage(_ urls: [URL], completion: ((Bool, String) -> Void)? = nil) {
-        mutate(urls, args: { ["add", "--", $0] }, completion: completion)
-    }
-
-    func unstage(_ urls: [URL], completion: ((Bool, String) -> Void)? = nil) {
-        // `restore --staged` je moderan put; fallback na `reset HEAD`.
+        if let error = repositoryError(for: urls) { completion?(false, error); return }
         guard let root = commonRoot(for: urls) else { completion?(false, "Nije Git repository."); return }
         DispatchQueue.global(qos: .userInitiated).async {
             var ok = true
             var msg = ""
             for u in urls {
                 let rel = self.relativePath(of: u, to: root)
-                var (out, code) = Self.runGit(in: root, args: ["restore", "--staged", "--", rel])
-                if code != 0 {
+                let (out, code) = Self.runGit(in: root, args: ["add", "--", rel])
+                if code != 0 { ok = false; msg = out }
+            }
+            self.afterMutation(ok: ok, message: msg, root: root, completion: completion)
+        }
+    }
+
+    func unstage(_ urls: [URL], completion: ((Bool, String) -> Void)? = nil) {
+        if let error = repositoryError(for: urls) { completion?(false, error); return }
+        guard let root = commonRoot(for: urls) else { completion?(false, "Nije Git repository."); return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let hasHead = Self.runGit(in: root, args: ["rev-parse", "--verify", "HEAD"]).1 == 0
+            var ok = true
+            var msg = ""
+            for u in urls {
+                let rel = self.relativePath(of: u, to: root)
+                var (out, code) = hasHead
+                    ? Self.runGit(in: root, args: ["restore", "--staged", "--", rel])
+                    : Self.runGit(in: root, args: ["rm", "--cached", "--", rel])
+                if code != 0 && hasHead {
                     (out, code) = Self.runGit(in: root, args: ["reset", "HEAD", "--", rel])
                 }
                 if code != 0 { ok = false; msg = out }
@@ -387,24 +456,36 @@ final class GitService: ObservableObject {
         }
     }
 
-    /// Discard: tracked → `git restore`, untracked → `git clean -f`
-    /// (samo uz explicitnu potvrdu u UI — destruktivno).
+    /// Discard: tracked changes are restored from HEAD and untracked files are
+    /// removed only when explicitly requested by the caller.
     func discard(_ urls: [URL], includeUntracked: Bool = false, completion: ((Bool, String) -> Void)? = nil) {
+        if let error = repositoryError(for: urls) { completion?(false, error); return }
         guard let root = commonRoot(for: urls) else { completion?(false, "Nije Git repository."); return }
         DispatchQueue.global(qos: .userInitiated).async {
+            let hasHead = Self.runGit(in: root, args: ["rev-parse", "--verify", "HEAD"]).1 == 0
             var ok = true
             var msg = ""
             for u in urls {
                 let rel = self.relativePath(of: u, to: root)
-                let st = self.statuses[u.standardizedFileURL.path]?.state
-                if st == .untracked {
-                    guard includeUntracked else { continue }
-                    let (out, code) = Self.runGit(in: root, args: ["clean", "-f", "--", rel])
-                    if code != 0 { ok = false; msg = out }
+                let untracked = Self.runGit(in: root, args: ["ls-files", "--others", "--exclude-standard", "--", rel]).0
+                    .split(separator: "\n").contains { $0 == Substring(rel) }
+                let trackedInHead = Self.runGit(in: root, args: ["ls-tree", "-r", "--name-only", "HEAD", "--", rel]).1 == 0
+                if untracked || !trackedInHead {
+                    if !untracked && hasHead {
+                        let (resetOut, resetCode) = Self.runGit(in: root, args: ["reset", "--quiet", "HEAD", "--", rel])
+                        if resetCode != 0 { ok = false; msg = resetOut }
+                    } else if hasHead {
+                        let (removeOut, removeCode) = Self.runGit(in: root, args: ["rm", "--cached", "--ignore-unmatch", "--", rel])
+                        if removeCode != 0 { ok = false; msg = removeOut }
+                    }
+                    if includeUntracked {
+                        let (cleanOut, cleanCode) = Self.runGit(in: root, args: ["clean", "-fd", "--", rel])
+                        if cleanCode != 0 { ok = false; msg = cleanOut }
+                    }
                 } else {
-                    var (out, code) = Self.runGit(in: root, args: ["restore", "--", rel])
+                    var (out, code) = Self.runGit(in: root, args: ["restore", "--source=HEAD", "--staged", "--worktree", "--", rel])
                     if code != 0 {
-                        (out, code) = Self.runGit(in: root, args: ["checkout", "--", rel])
+                        (out, code) = Self.runGit(in: root, args: ["checkout", "HEAD", "--", rel])
                     }
                     if code != 0 { ok = false; msg = out }
                 }
@@ -444,37 +525,46 @@ final class GitService: ObservableObject {
         return out.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// "Copy GitHub link": blob/tree URL za fajl/folder na tekućem branchu.
-    /// Radi i za GitLab (isti URL oblik). SSH remote se konvertuje u HTTPS.
-    func githubLink(for url: URL) -> URL? {
-        guard let root = repoRoot(for: url), let remote = remoteURL(in: root) else { return nil }
-        var https = remote
-        // git@github.com:owner/repo.git → https://github.com/owner/repo
-        if https.hasPrefix("git@"), let colon = https.firstIndex(of: ":") {
-            let host = https[https.index(https.startIndex, offsetBy: 4)..<colon]
-            let path = https[https.index(after: colon)...]
-            https = "https://\(host)/\(path)"
+    private func normalizedWebRemote(_ remote: String) -> URL? {
+        var value = remote.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasSuffix(".git") { value = String(value.dropLast(4)) }
+        if value.hasPrefix("git@"), let colon = value.firstIndex(of: ":") {
+            let host = value[value.index(value.startIndex, offsetBy: 4)..<colon]
+            let path = value[value.index(after: colon)...]
+            return URL(string: "https://\(host)/\(path)")
         }
-        if https.hasSuffix(".git") { https = String(https.dropLast(4)) }
-        let branchName = branch ?? "main"
-        let rel = relativePath(of: url, to: root)
-        var isDir: ObjCBool = false
-        FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
-        let kind = isDir.boolValue ? "tree" : "blob"
-        if rel == "." { return URL(string: "\(https)/\(kind)/\(branchName)") }
-        // Relativna putanja mora biti URL-encoded po segmentima.
-        let encoded = rel.components(separatedBy: "/").map {
-            $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? $0
-        }.joined(separator: "/")
-        return URL(string: "\(https)/\(kind)/\(branchName)/\(encoded)")
+        if let url = URL(string: value), url.scheme == "ssh", let host = url.host {
+            return URL(string: "https://\(host)\(url.path)")
+        }
+        return URL(string: value)
     }
 
-    func copyGithubLink(for url: URL) -> Bool {
-        guard let link = githubLink(for: url) else { return false }
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(link.absoluteString, forType: .string)
-        NotificationCenter.default.post(name: .ffExternalPasteboardWrite, object: nil)
-        return true
+    func githubLink(for url: URL, completion: @escaping (URL?) -> Void) {
+        guard let root = repoRoot(for: url) else { completion(nil); return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let remote = self.remoteURL(in: root), let base = self.normalizedWebRemote(remote) else {
+                completion(nil); return
+            }
+            let branchName = self.branch ?? "main"
+            let rel = self.relativePath(of: url, to: root)
+            var isDir: ObjCBool = false
+            FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir)
+            let kind = isDir.boolValue ? "tree" : "blob"
+            let path = rel == "." ? "" : "/" + rel.components(separatedBy: "/").map {
+                $0.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? $0
+            }.joined(separator: "/")
+            completion(URL(string: "\(base.absoluteString)/\(kind)/\(branchName)\(path)"))
+        }
+    }
+
+    func copyGithubLink(for url: URL, completion: @escaping (Bool) -> Void) {
+        githubLink(for: url) { link in
+            guard let link else { completion(false); return }
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(link.absoluteString, forType: .string)
+            NotificationCenter.default.post(name: .ffExternalPasteboardWrite, object: nil)
+            completion(true)
+        }
     }
 
     func openRepository(_ root: URL) {
@@ -505,10 +595,36 @@ final class GitService: ObservableObject {
 
     private func commonRoot(for urls: [URL]) -> URL? {
         guard let first = urls.first, let root = repoRoot(for: first) else { return nil }
+        let rootPath = root.standardizedFileURL.path
+        for url in urls {
+            guard let urlRoot = repoRoot(for: url),
+                  urlRoot.standardizedFileURL.path == rootPath else { return nil }
+            let path = url.standardizedFileURL.path
+            guard path == rootPath || path.hasPrefix(rootPath + "/") else { return nil }
+        }
         return root
     }
 
+    func repositoryError(for urls: [URL]) -> String? {
+        guard let first = urls.first, let root = repoRoot(for: first) else {
+            return "Svi izabrani fajlovi moraju biti u istom Git repozitorijumu."
+        }
+        let rootPath = root.standardizedFileURL.path
+        for url in urls {
+            guard let urlRoot = repoRoot(for: url),
+                  urlRoot.standardizedFileURL.path == rootPath else {
+                return "Svi izabrani fajlovi moraju biti u istom Git repozitorijumu."
+            }
+            let path = url.standardizedFileURL.path
+            guard path == rootPath || path.hasPrefix(rootPath + "/") else {
+                return "Svi izabrani fajlovi moraju biti u istom Git repozitorijumu."
+            }
+        }
+        return nil
+    }
+
     private func mutate(_ urls: [URL], args: @escaping (String) -> [String], completion: ((Bool, String) -> Void)?) {
+        if let error = repositoryError(for: urls) { completion?(false, error); return }
         guard let root = commonRoot(for: urls) else { completion?(false, "Nije Git repository."); return }
         DispatchQueue.global(qos: .userInitiated).async {
             var ok = true
@@ -523,11 +639,11 @@ final class GitService: ObservableObject {
     }
 
     private func afterMutation(ok: Bool, message: String, root: URL, completion: ((Bool, String) -> Void)?) {
-        doRefresh(for: root)
+        refreshNow(for: root)
         DispatchQueue.main.async {
             self.version &+= 1
+            self.lastError = ok ? nil : message
             NotificationCenter.default.post(name: .ffGitDidChange, object: root)
-            // Browser reload: git je promijenio radni direktorijum.
             NotificationCenter.default.post(name: .refreshDirectory, object: root)
             completion?(ok, message)
         }
@@ -543,19 +659,41 @@ final class GitService: ObservableObject {
         var env = ProcessInfo.processInfo.environment
         env["GIT_TERMINAL_PROMPT"] = "0"
         env["GIT_EDITOR"] = "true"
+        env["GIT_LITERAL_PATHSPECS"] = "1"
         p.environment = env
         let outPipe = Pipe()
         let errPipe = Pipe()
         p.standardOutput = outPipe
         p.standardError = errPipe
+        let processDone = DispatchSemaphore(value: 0)
+        p.terminationHandler = { _ in processDone.signal() }
         do {
             try p.run()
         } catch {
             return ("Git nije dostupan: \(error.localizedDescription)", 127)
         }
+        let group = DispatchGroup()
+        let outBox = GitOutputBox()
+        let errBox = GitOutputBox()
+        group.enter()
+        DispatchQueue.global(qos: .userInitiated).async { [outPipe] in
+            outBox.set(outPipe.fileHandleForReading.readDataToEndOfFile())
+            group.leave()
+        }
+        group.enter()
+        DispatchQueue.global(qos: .userInitiated).async { [errPipe] in
+            errBox.set(errPipe.fileHandleForReading.readDataToEndOfFile())
+            group.leave()
+        }
+        if processDone.wait(timeout: .now() + 120) == .timedOut {
+            p.terminate()
+            p.waitUntilExit()
+            return ("Git command timed out after 120 seconds.", 124)
+        }
         p.waitUntilExit()
-        let out = String(data: outPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        let err = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        group.wait()
+        let out = String(data: outBox.value(), encoding: .utf8) ?? ""
+        let err = String(data: errBox.value(), encoding: .utf8) ?? ""
         let code = p.terminationStatus
         // Greške idu na stderr — spoji da UI ima šta da pokaže.
         if code != 0, !err.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -575,16 +713,19 @@ final class GitService: ObservableObject {
 
     static func parseStatus(_ porcelain: String, root: URL) -> ParsedStatus {
         var res = ParsedStatus()
-        for rawLine in porcelain.components(separatedBy: "\n") {
-            let line = rawLine
+        let records = porcelain.contains("\0")
+            ? porcelain.components(separatedBy: "\0")
+            : porcelain.components(separatedBy: "\n")
+        var recordIndex = 0
+        while recordIndex < records.count {
+            let line = records[recordIndex]
+            recordIndex += 1
             if line.hasPrefix("## ") {
                 let info = String(line.dropFirst(3))
-                // "main...origin/main [ahead 2, behind 1]" / "main" / "No commits yet on main"
                 if let dots = info.range(of: "...") {
                     res.branch = String(info[..<dots.lowerBound])
                     let rest = String(info[dots.upperBound...])
-                    if let l = rest.range(of: "["),
-                       let r = rest.range(of: "]") {
+                    if let l = rest.range(of: "["), let r = rest.range(of: "]") {
                         let inside = String(rest[l.upperBound..<r.lowerBound])
                         for part in inside.components(separatedBy: ",") {
                             let t = part.trimmingCharacters(in: .whitespaces)
@@ -602,14 +743,15 @@ final class GitService: ObservableObject {
                 continue
             }
             guard line.count >= 4 else { continue }
-            let x = line[line.startIndex]
-            let y = line[line.index(line.startIndex, offsetBy: 1)]
-            var pathPart = String(line.dropFirst(3))
-            // Rename: "old -> new" — status nosi nova putanja.
-            if x == "R", let arrow = pathPart.range(of: " -> ") {
+            let chars = Array(line)
+            let x = chars[0]
+            let y = chars[1]
+            var pathPart = String(chars.dropFirst(3))
+            if x == "R", porcelain.contains("\0") {
+                recordIndex += 1
+            } else if x == "R", let arrow = pathPart.range(of: " -> ") {
                 pathPart = String(pathPart[arrow.upperBound...])
             }
-            // Citirane putanje sa razmacima: git ih wrappuje u "".
             if pathPart.hasPrefix("\""), pathPart.hasSuffix("\""), pathPart.count >= 2 {
                 pathPart = String(pathPart.dropFirst().dropLast())
             }

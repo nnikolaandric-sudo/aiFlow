@@ -182,6 +182,7 @@ final class MailInboxWatcher: ObservableObject {
 
     @Published private(set) var lastMessage: String?
 
+    private let workQueue = DispatchQueue(label: "FinderFlow.mailInboxWatcher", qos: .utility)
     private var source: DispatchSourceFileSystemObject?
     private var watchedPath: String?
     private var pending: DispatchWorkItem?
@@ -189,27 +190,39 @@ final class MailInboxWatcher: ObservableObject {
     static var isEnabled: Bool { UserDefaults.standard.bool(forKey: enabledKey) }
 
     /// Starts, restarts (Email folder moved) or stops watching to match
-    /// Settings. Safe to call any time; main thread.
+    /// Settings. The source and all sync work stay off the main thread.
     func refresh() {
         guard Self.isEnabled else { stop(); return }
-        MailFilingService.ensureEmailDirs()
         let path = MailFilingService.inboxDir().path
+        workQueue.async { [weak self] in
+            guard let self, Self.isEnabled else { return }
+            MailFilingService.ensureEmailDirs()
+            self.refreshOnQueue(path: path)
+        }
+    }
+
+    private func refreshOnQueue(path: String) {
         if watchedPath == path, source != nil { return }
-        stop()
+        stopOnQueue()
         let fd = open(path, O_EVTONLY)
         guard fd >= 0 else { return }
         let src = DispatchSource.makeFileSystemObjectSource(fileDescriptor: fd, eventMask: [.write, .rename, .extend],
-                                                            queue: .main)
+                                                            queue: workQueue)
         src.setEventHandler { [weak self] in self?.schedule() }
         src.setCancelHandler { close(fd) }
         src.resume()
         source = src
         watchedPath = path
-        // Mail that arrived while FinderFlow was closed.
         schedule()
     }
 
     func stop() {
+        workQueue.async { [weak self] in
+            self?.stopOnQueue()
+        }
+    }
+
+    private func stopOnQueue() {
         pending?.cancel()
         pending = nil
         source?.cancel()
@@ -217,22 +230,24 @@ final class MailInboxWatcher: ObservableObject {
         watchedPath = nil
     }
 
-    /// Debounced: the rule writes a file in several steps, and a batch of
-    /// messages lands as a burst — one sync covers them all.
     private func schedule() {
         pending?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.syncIfNeeded() }
         pending = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2, execute: work)
+        workQueue.asyncAfter(deadline: .now() + 2, execute: work)
     }
 
     private func syncIfNeeded() {
+        guard Self.isEnabled else { return }
         let inbox = MailFilingService.inboxDir()
         let files = (try? FileManager.default.contentsOfDirectory(atPath: inbox.path)) ?? []
         guard files.contains(where: { $0.lowercased().hasSuffix(".eml") }) else { return }
         let r = MailFilingService.shared.sync()
-        if r.ingested > 0 {
-            lastMessage = "Auto-sync \(Date().formatted(date: .omitted, time: .shortened)): \(r.ingested) new"
+        if r.ingested > 0 || r.failed > 0 {
+            let message = r.failed > 0
+                ? "Auto-sync \(Date().formatted(date: .omitted, time: .shortened)): \(r.ingested) new, \(r.failed) failed"
+                : "Auto-sync \(Date().formatted(date: .omitted, time: .shortened)): \(r.ingested) new"
+            DispatchQueue.main.async { [weak self] in self?.lastMessage = message }
         }
     }
 }

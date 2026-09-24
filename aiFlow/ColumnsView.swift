@@ -17,6 +17,7 @@ struct ColumnsView: View {
     let folderOrder:    FolderOrder
     @ObservedObject var fileOps:   FileOperationsService
     @ObservedObject var favorites: FavoritesService
+    @ObservedObject var git: GitService = .shared
     // Search support — when isSearchActive the column browser is replaced by a flat results list
     let searchResults:  [FileItem]
     let isSearchActive: Bool
@@ -122,6 +123,7 @@ struct ColumnsView: View {
                         if let wsBadge = WorkspaceStore.shared.badge(for: item.url) {
                             WorkspaceBadgeView(badge: wsBadge)
                         }
+                        GitBadgeView(status: git.status(for: item.url), size: 9)
                         TagDotsView(colors: item.tagColors, size: 9)
                     }
                     // Lokacija umjesto pune apsolutne putanje: u rezultatima
@@ -393,7 +395,9 @@ struct ColumnPreviewPane: View {
     /// Selects a file in the column browser (workspace relation jumps, §10).
     var onRevealFile: (URL) -> Void = { _ in }
     @ObservedObject var workspaces: WorkspaceStore = .shared
+    @ObservedObject var git: GitService = .shared
     @State private var item: FileItem?
+    @State private var gitTab: GitPreviewTab = .diff
 
     private func load() {
         guard var loaded = FileItem.load(from: url) else { item = nil; return }
@@ -408,7 +412,9 @@ struct ColumnPreviewPane: View {
     var body: some View {
         VStack(spacing: 0) {
             if let item {
-                if item.isBrowsableFolder, workspaces.isWorkspace(item.url),
+                if let root = git.repoRoot(for: item.url) {
+                    gitPreview(item: item, root: root)
+                } else if item.isBrowsableFolder, workspaces.isWorkspace(item.url),
                    let ws = workspaces.workspace(at: item.url) {
                     // Workspace root → whole-project overview (§3).
                     WorkspaceOverviewView(workspaceID: ws.id, rootURL: item.url,
@@ -462,12 +468,51 @@ struct ColumnPreviewPane: View {
         .background(Color(nsColor: .textBackgroundColor))
         .onAppear   { load() }
         .onChange(of: url) { _, _ in load() }
+        .onReceive(NotificationCenter.default.publisher(for: .ffGitShowDiff)) { n in
+            if let request = n.object as? URL, request == url { gitTab = .diff }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ffGitShowHistory)) { n in
+            if let request = n.object as? URL, request == url { gitTab = .history }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ffGitShowRepo)) { n in
+            if let request = n.object as? URL, request == url || request == url.deletingLastPathComponent() { gitTab = .repo }
+        }
         .onChange(of: sizesVersion) { _, _ in
             // Sizing run je keširao veličinu u međuvremenu — pokupi bez reload-a.
             if showFolderSizes, let current = item,
                current.isBrowsableFolder, current.folderSize == nil,
                let hit = FolderSizeService.shared.cachedSize(for: url) {
                 item = current.withFolderSize(hit)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func gitPreview(item: FileItem, root: URL) -> some View {
+        VStack(spacing: 0) {
+            Picker("", selection: $gitTab) {
+                Text("Preview").tag(GitPreviewTab.preview)
+                Text("Diff").tag(GitPreviewTab.diff)
+                Text("History").tag(GitPreviewTab.history)
+                Text("Repo").tag(GitPreviewTab.repo)
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            Divider().opacity(0.6)
+            switch gitTab {
+            case .preview:
+                legacyPreview(item: item)
+            case .diff:
+                GitFileDiffView(url: item.url, onReload: {
+                    NotificationCenter.default.post(name: .refreshDirectory, object: item.url.deletingLastPathComponent())
+                })
+            case .history:
+                GitHistoryView(url: item.url, root: root)
+            case .repo:
+                GitRepoPanel(root: root, onRevealFile: onRevealFile, onReload: {
+                    NotificationCenter.default.post(name: .refreshDirectory, object: root)
+                })
             }
         }
     }
@@ -744,6 +789,7 @@ struct ColumnPane: View {
     /// Workspace bedževi (§13): verzija se spušta redovima da `.equatable()`
     /// redovi preslikaju kad task/review/expiry/share stigne.
     @ObservedObject var workspaces: WorkspaceStore = .shared
+    @ObservedObject var git: GitService = .shared
     /// ↑/↓ act only in the last (active) pane — every pane registers the
     /// shortcut, the guard picks the live one.
     var isActivePane = false
@@ -879,7 +925,7 @@ struct ColumnPane: View {
             ColumnPaneRows(items: items, groups: groups, grouped: groupBy != .none,
                            listGeneration: reloadGeneration,
                            highlight: highlight, actions: rowActions,
-                           workspaceVersion: workspaces.version)
+                           workspaceVersion: workspaces.version, gitVersion: git.version)
         }
         .listStyle(.plain)
         // Background right-click (empty space or empty folder)
@@ -999,6 +1045,7 @@ private struct ColumnPaneRows: View {
     /// Verzija Workspace store-a (§13): red se preslika kad task/review/
     /// expiry/share stigne; bedž se čita u telu reda, ne ovde.
     let workspaceVersion: UInt
+    let gitVersion: UInt
 
     var body: some View {
         if grouped {
@@ -1021,7 +1068,7 @@ private struct ColumnPaneRows: View {
                       onSpringOpen: actions.onSelect) {
             // Highlight čita sam red iz `highlight` — ovdje ga namjerno nema,
             // da klik ne mijenja ulaze redova.
-            ColumnRow(item: item, highlight: highlight, workspaceVersion: workspaceVersion)
+            ColumnRow(item: item, highlight: highlight, workspaceVersion: workspaceVersion, gitVersion: gitVersion)
                 .equatable()
         }
             .contentShape(Rectangle())
@@ -1098,12 +1145,14 @@ struct ColumnRow: View {
     /// Verzija Workspace store-a (§13): bedž se računa u `body` (samo za
     /// nacrtane redove), a ovo polje tjera preslikavanje kad podaci stignu.
     var workspaceVersion: UInt = 0
+    var gitVersion: UInt = 0
     @State private var hovering = false
     @Environment(\.ffCompactRows) private var compact
 
     var body: some View {
         let isHighlighted = highlight.url == item.url
         let wsBadge = WorkspaceStore.shared.badge(for: item.url)
+        let gitStatus = GitService.shared.status(for: item.url)
         return HStack(spacing: 8) {
             FileIconView(item: item, size: 16)
                 .frame(width: 20, height: 20)
@@ -1114,6 +1163,7 @@ struct ColumnRow: View {
             if let wsBadge {
                 WorkspaceBadgeView(badge: wsBadge)
             }
+            GitBadgeView(status: gitStatus, size: 9)
             TagDotsView(colors: item.tagColors, size: 9)
             Spacer(minLength: 4)
             if item.isBrowsableFolder {
@@ -1145,5 +1195,6 @@ extension ColumnRow: Equatable {
     static func == (lhs: ColumnRow, rhs: ColumnRow) -> Bool {
         lhs.item == rhs.item && lhs.highlight === rhs.highlight
             && lhs.workspaceVersion == rhs.workspaceVersion
+            && lhs.gitVersion == rhs.gitVersion
     }
 }

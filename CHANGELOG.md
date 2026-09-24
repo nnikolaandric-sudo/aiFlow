@@ -5,6 +5,60 @@ relative to the 1.0 release.
 
 ---
 
+## 2.1.1 (2026-09-24)
+
+Reliability release: Git, Mail Inbox and Secure Share signatures.
+
+### Git
+
+- **Status stays in sync with the folder you are looking at.** Refreshes are
+  numbered; a slow `git status` for a folder you already left can no longer
+  overwrite the current one. Reload (⌘R) refreshes Git too.
+- **Paths with spaces, quotes and non-ASCII names** are parsed correctly
+  (`git status -z`, literal pathspecs), including renames.
+- **Stage / Unstage / Discard are safer:** every selected file must be in the
+  same repository; Unstage works before the first commit; Discard restores
+  from HEAD and only removes untracked files after the confirmation. Commit is
+  enabled only when something is staged.
+- **Errors are shown** (context menu alert, Repo panel) instead of failing
+  silently. A hung git process is stopped after 120 s; output is read while
+  the process runs, so large diffs cannot deadlock.
+- **Copy GitHub Link** no longer blocks the UI and also understands
+  `ssh://` remotes.
+- **Columns view** shows Git badges and the Preview · Diff · History · Repo
+  tabs in the preview column.
+
+### Mail Inbox
+
+- **Sync and .eml import run in the background** (with a progress label);
+  the auto-sync watcher no longer works on the main thread.
+- **No mail is lost on name clashes:** imported and archived `.eml` files get
+  a unique name ("Mail (2).eml") instead of being skipped or deleted.
+- **A mail stays in Review until every attachment is written** to the DMS;
+  staged attachment bytes are kept until then. Sync reports failures.
+
+### Secure Share signatures
+
+- **Sealing is tracked end to end:** a signed PDF shows *sealing PDF…*,
+  *sealed in PDF* or the error, both in aiFlow and on the recipient's page
+  (which updates by itself). **Retry sealing** fixes a failed seal.
+- Quick Share seals the PDF off the main actor; the relay server gains
+  `sealed_at` / `seal_error` and a `/seal-error` endpoint, and refuses a
+  second seal with a different hash.
+- The recipient page is branded aiFlow.
+
+### Other
+
+- **Launch at Login** reflects the real system state when registration fails.
+- Size filters ignore negative, infinite and overflowing numbers.
+- The native list has an Open / Quick Look context menu on macOS 14.0–14.3.
+- Cloud sync folders in the sidebar are labelled *Local folder*, to tell
+  them apart from the Google Drive section.
+- VoiceOver reads a file's Git state in the list and icon views.
+- Version 2.1.1 (build 10).
+
+---
+
 ## 2.0.0 — aiFlow (2026-09-24)
 
 First release of aiFlow as its own app, published from

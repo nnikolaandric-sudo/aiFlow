@@ -37,7 +37,8 @@ export async function createServer({store,origin,enrollmentCode,allowHTTP=false}
   const cleanup=setInterval(()=>store.cleanup().catch(()=>{}),60000);cleanup.unref();
   function json(res,status,data,headers={}) {res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',...headers});res.end(JSON.stringify(data));}
   function publicShare(s) {
-    return {id:s.id,filename:s.filename,mimeType:s.mime_type,size:Number(s.file_size),allowPreview:s.allow_preview&&safePreview(s.mime_type),allowDownload:s.allow_download,expiresAt:s.expires_at?Number(s.expires_at):null,status:state(s,relay.online(s.device_id))==='ONLINE'?(relay.fileStates.get(s.id)||'ONLINE'):state(s,relay.online(s.device_id)),downloadCount:s.download_count,viewCount:s.view_count,maxDownloads:s.max_downloads,requireSignature:!!s.require_signature,approvalName:s.approval_name||null,approvalAt:s.approval_at?Number(s.approval_at):null};
+    const sealStatus=s.approval_name?(s.mime_type==='application/pdf'?(s.seal_error?'signature_failed':(s.sealed_at?'sealed':'sealing')):'signature_saved'):null;
+    return {id:s.id,filename:s.filename,mimeType:s.mime_type,size:Number(s.file_size),allowPreview:s.allow_preview&&safePreview(s.mime_type),allowDownload:s.allow_download,expiresAt:s.expires_at?Number(s.expires_at):null,status:state(s,relay.online(s.device_id))==='ONLINE'?(relay.fileStates.get(s.id)||'ONLINE'):state(s,relay.online(s.device_id)),downloadCount:s.download_count,viewCount:s.view_count,maxDownloads:s.max_downloads,requireSignature:!!s.require_signature,approvalName:s.approval_name||null,approvalAt:s.approval_at?Number(s.approval_at):null,sealedAt:s.sealed_at?Number(s.sealed_at):null,sealError:s.seal_error||null,sealStatus};
   }
   // "Ugovor.pdf" + "Marko" → "Ugovor (signed by Marko).pdf". Ime fajla je
   // jedino mesto koje vlasnik sigurno vidi — zato se approval čuva u njemu.
@@ -124,18 +125,29 @@ export async function createServer({store,origin,enrollmentCode,allowHTTP=false}
       if(s.device_id!==device||s.token_hash!==b.tokenHash)throw fault(409,'CONFLICT');
       await store.event(s.id,'created');return json(res,201,publicShare(s));
     }
-    const owned=/^\/v1\/shares\/([0-9a-f-]{36})(?:\/(revoke|renew|events|approval|sealed))?$/.exec(path);
+    const owned=/^\/v1\/shares\/([0-9a-f-]{36})(?:\/(revoke|renew|events|approval|sealed|seal-error))?$/.exec(path);
     if(owned&&uuidPattern.test(owned[1])){
       const device=await auth(req),s=await store.share(owned[1]);if(!s||s.device_id!==device)throw fault(404,'NOT_FOUND');
       if((method==='DELETE'&&!owned[2])||(method==='POST'&&owned[2]==='revoke')){await store.revoke(s.id,device);relay.revoke(s.id);await store.event(s.id,'revoked');return json(res,200,{ok:true});}
       if(method==='POST'&&owned[2]==='renew'){const b=await body(req);if(b.expiresAt!==null&&(!Number.isSafeInteger(b.expiresAt)||b.expiresAt<=Date.now()))throw fault(400,'INVALID_EXPIRY');if(s.revoked_at)throw fault(410,'REVOKED');const updated=await store.renew(s.id,device,b.expiresAt);relay.renew(s.id,b.expiresAt);return json(res,200,publicShare(updated));}
       if(method==='GET'&&owned[2]==='events')return json(res,200,{events:await store.events(s.id)});
-      if(method==='GET'&&owned[2]==='approval')return json(res,200,{approvalName:s.approval_name||null,approvalAt:s.approval_at?Number(s.approval_at):null,approvalSignature:s.approval_signature||null,filename:s.filename});
-      if(method==='POST'&&owned[2]==='sealed'){
+       if(method==='GET'&&owned[2]==='approval')return json(res,200,{approvalName:s.approval_name||null,approvalAt:s.approval_at?Number(s.approval_at):null,approvalSignature:s.approval_signature||null,filename:s.filename});
+       if(method==='POST'&&owned[2]==='seal-error'){
+         const b=await body(req);
+         if(typeof b.error!=='string'||!b.error.trim()||b.error.length>500||/[\x00-\x1f\x7f]/.test(b.error))throw fault(400,'INVALID_SEAL_ERROR');
+         if(!s.approval_name)throw fault(409,'NOT_APPROVED');
+         const updated=await store.markSealError(s.id,device,b.error.trim());
+         if(!updated)throw fault(409,'ALREADY_SEALED');
+         await store.event(s.id,'seal_failed');return json(res,200,publicShare(updated));
+       }
+       if(method==='POST'&&owned[2]==='sealed'){
+
         const b=await body(req);
-        if(!/^([a-f0-9]{64})$/.test(b.fileHash)||!Number.isSafeInteger(b.size)||b.size<=0||b.size>500*1024*1024)throw fault(400,'INVALID_SEAL');
-        if(!s.approval_name)throw fault(409,'NOT_APPROVED');
-        const updated=await store.seal(s.id,device,b.fileHash,b.size);
+         if(!/^([a-f0-9]{64})$/.test(b.fileHash)||!Number.isSafeInteger(b.size)||b.size<=0||b.size>500*1024*1024)throw fault(400,'INVALID_SEAL');
+         if(!s.approval_name)throw fault(409,'NOT_APPROVED');
+         if(s.sealed_at&&(s.file_hash!==b.fileHash||Number(s.file_size)!==b.size))throw fault(409,'ALREADY_SEALED');
+         const updated=await store.seal(s.id,device,b.fileHash,b.size);
+
         if(!updated)throw fault(409,'NOT_APPROVED');
         await store.event(s.id,'sealed');return json(res,200,publicShare(updated));
       }

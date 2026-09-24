@@ -1,6 +1,6 @@
 'use strict';
 const $=id=>document.getElementById(id);
-let token=location.hash.slice(1), sessionId=null, password='';
+let token=location.hash.slice(1), sessionId=null, password='', sealPollTimer=null;
 history.replaceState(null,'','/s'); // Remove the long-lived secret from the visible address/history entry.
 const messages={OFFLINE:'The device sharing this file is offline.',EXPIRED:'This share link has expired.',REVOKED:'The owner has revoked this share.',NOT_FOUND:'This link is invalid or incomplete.',PASSWORD_REQUIRED:'This file is protected by a password.',INVALID_PASSWORD:'That password is incorrect.',SESSION_EXPIRED:'Your access session expired. Reopen the original link.',DOWNLOAD_LIMIT_REACHED:'The download limit has been reached.',RATE_LIMITED:'Too many attempts. Please try again later.',FILE_MISSING:'The shared file is no longer available on the Mac.',FILE_CHANGED:'The shared copy has changed. Ask the owner for a new link.',BUSY:'The sharing device is busy. Try again shortly.',ALREADY_SIGNED:'This file was already signed — showing the current state.',INVALID_NAME:'Type your full name (up to 100 characters).',INVALID_SIGNATURE:'Draw your signature first, then sign.'};
 function show(data) {
@@ -22,6 +22,7 @@ function show(data) {
   // fajla "… (signed by Ime)" + activity log.
   const approved=data.approvalName;
   const wantsSign=!!data.requireSignature;
+  const sealStatus=data.sealStatus || (approved ? (data.mimeType === 'application/pdf' ? 'unknown' : 'signature_saved') : null);
   $('signbox').hidden=!online||(!wantsSign&&!approved);
   $('signform').hidden=!!approved;
   $('approved').hidden=!approved;
@@ -29,13 +30,41 @@ function show(data) {
     const when=data.approvalAt?new Date(data.approvalAt).toLocaleString():'';
     $('approved').innerHTML='';
     const check=document.createElement('span');check.className='check';check.setAttribute('aria-hidden','true');check.textContent='✓';$('approved').append(check,document.createTextNode(` Signed by ${data.approvalName}${when?' · '+when:''}`));
-    $('signinfo').textContent=data.mimeType==='application/pdf'
-      ?'Done — your signature was sealed into the PDF as its last page. The owner sees it in the file name and activity log.'
-      :'Done — your signature was saved. The owner sees it in the file name and activity log.';
+    if(data.mimeType==='application/pdf'){
+      $('signinfo').textContent=sealStatus==='sealed'
+        ?'Done — your signature was sealed into the PDF as its last page. The owner sees it in the file name and activity log.'
+        :sealStatus==='signature_failed'
+          ?(data.sealError || 'Your signature was saved, but the PDF could not be sealed. Ask the owner to retry.')
+          :sealStatus==='unknown'
+            ?'Signature received. The owner is finishing the PDF; reopen this link to check the final state.'
+            :'Signature received. The owner’s Mac is sealing the PDF now; this page will update when it is ready.';
+    } else {
+      $('signinfo').textContent='Done — your signature was saved. The owner sees it in the file name and activity log.';
+    }
   } else if(wantsSign){
     $('signinfo').textContent=data.mimeType==='application/pdf'
       ?'The owner asked for a signature. Draw below, type your full name, then sign — it becomes the last page of the PDF and the file is renamed to “(signed by Your Name)”.'
       :'The owner asked for a signature. Draw below, type your full name, then sign — the file is renamed to “(signed by Your Name)”.';
+  }
+  if(sealPollTimer)clearTimeout(sealPollTimer);
+  if(online&&approved&&data.mimeType==='application/pdf'&&sealStatus==='sealing'){
+    const poll=async()=>{
+      try{
+        const response=await fetch(`/r/${sessionId}/metadata`);
+        const data=await response.json();
+        if(!response.ok){
+          if(data.error==='SESSION_EXPIRED'){
+            sessionId=null;$('status').textContent=messages.SESSION_EXPIRED;$('preview').hidden=true;$('download').hidden=true;$('retry').hidden=false;return;
+          }
+          throw new Error(data.error||'Unable to refresh the sealing status');
+        }
+        show(data);
+      }catch(error){
+        $('signstatus').textContent='Still waiting for the sealed PDF. Retrying…';
+        sealPollTimer=setTimeout(poll,3000);
+      }
+    };
+    sealPollTimer=setTimeout(poll,1500);
   }
 }
 async function refreshState(){

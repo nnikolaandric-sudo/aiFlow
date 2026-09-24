@@ -111,6 +111,10 @@ final class MailStore: ObservableObject {
         queue.sync { seenMessageIDs }
     }
 
+    func lastSyncDateSnapshot() -> Date? {
+        queue.sync { lastSyncDate }
+    }
+
     func update(_ record: MailInboxRecord) {
         // Batch AI passes run off-main; @Published state only changes on main.
         guard Thread.isMainThread else {
@@ -128,7 +132,13 @@ final class MailStore: ObservableObject {
     /// the thread's last filed mail ("attachment iz postojećeg threada →
     /// automatski poveži s istim predmetom").
     func threadEntity(threadID: String) -> MailFilingSuggestion? {
-        records.first(where: { $0.mail.threadID == threadID && ($0.status == .filed || $0.status == .linked) })?.suggestion
+        queue.sync {
+            records.first(where: { $0.mail.threadID == threadID && ($0.status == .filed || $0.status == .linked) })?.suggestion
+        }
+    }
+
+    func recordsSnapshot() -> [MailInboxRecord] {
+        queue.sync { records }
     }
 
     // MARK: Persistence

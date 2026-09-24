@@ -8,9 +8,11 @@ CREATE TABLE IF NOT EXISTS shares (
  allow_preview boolean NOT NULL, allow_download boolean NOT NULL, password_hash text,
  created_at bigint NOT NULL, expires_at bigint, revoked_at bigint,
  max_downloads integer, download_count integer NOT NULL DEFAULT 0, view_count integer NOT NULL DEFAULT 0,
- require_signature boolean NOT NULL DEFAULT false,
- approval_name text, approval_at bigint, approval_signature text
+  require_signature boolean NOT NULL DEFAULT false,
+  approval_name text, approval_at bigint, approval_signature text,
+  sealed_at bigint, seal_error text
 );
+
 CREATE TABLE IF NOT EXISTS share_sessions (
  id uuid PRIMARY KEY, secret_hash text NOT NULL, share_id uuid NOT NULL REFERENCES shares(id),
  expires_at bigint NOT NULL, download_granted boolean NOT NULL DEFAULT false
@@ -26,3 +28,5 @@ ALTER TABLE shares ADD COLUMN IF NOT EXISTS require_signature boolean NOT NULL D
 ALTER TABLE shares ADD COLUMN IF NOT EXISTS approval_name text;
 ALTER TABLE shares ADD COLUMN IF NOT EXISTS approval_at bigint;
 ALTER TABLE shares ADD COLUMN IF NOT EXISTS approval_signature text;
+ALTER TABLE shares ADD COLUMN IF NOT EXISTS sealed_at bigint;
+ALTER TABLE shares ADD COLUMN IF NOT EXISTS seal_error text;

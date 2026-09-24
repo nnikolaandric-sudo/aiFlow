@@ -273,7 +273,7 @@ actor QuickShareServer {
         guard state == "ONLINE" else { throw QuickShareHTTPError(status: 410, code: state) }
     }
     private func metadata(_ share: SecureShareRecord, access: [String:Any], granted: Bool = false) -> [String:Any] {
-        ["id":share.id,"filename":share.filename,"mimeType":share.mimeType,"size":share.size,"allowPreview":share.allowPreview,"allowDownload":share.allowDownload,"expiresAt":share.expiresAt as Any? ?? NSNull(),"status":status(share),"downloadCount":access["downloads"] ?? 0,"viewCount":access["views"] ?? 0,"maxDownloads":share.maxDownloads as Any? ?? NSNull(),"downloadGranted":granted,"requireSignature":share.requireSignature,"approvalName":share.approvalName as Any? ?? NSNull(),"approvalAt":share.approvalAt as Any? ?? NSNull()]
+        ["id":share.id,"filename":share.filename,"mimeType":share.mimeType,"size":share.size,"allowPreview":share.allowPreview,"allowDownload":share.allowDownload,"expiresAt":share.expiresAt as Any? ?? NSNull(),"status":status(share),"downloadCount":access["downloads"] ?? 0,"viewCount":access["views"] ?? 0,"maxDownloads":share.maxDownloads as Any? ?? NSNull(),"downloadGranted":granted,"requireSignature":share.requireSignature,"approvalName":share.approvalName as Any? ?? NSNull(),"approvalAt":share.approvalAt as Any? ?? NSNull(),"sealedAt":share.sealedAt as Any? ?? NSNull(),"sealError":share.sealError as Any? ?? NSNull(),"sealStatus":share.signatureStatus]
     }
     private func validApprovalName(_ raw: Any?) throws -> String {
         guard let text = raw as? String else { throw QuickShareHTTPError(status: 400, code: "INVALID_NAME") }
@@ -388,17 +388,27 @@ actor QuickShareServer {
                 fresh.approvalName = name
                 fresh.approvalAt = (Date().timeIntervalSince1970*1000).rounded(.down)
                 fresh.filename = SecureShareRecord.approvedFilename(original: fresh.filename, signer: name)
+                fresh.sealedAt = nil
+                fresh.sealError = nil
                 var burnFailed = false
                 if fresh.mimeType == "application/pdf" {
                     do {
                         let snapURL = SecureSharePaths.snapshots.appendingPathComponent(fresh.id)
-                        let pdfData = try Data(contentsOf: snapURL)
-                        let burned = try RemoteApprovalBurn.burn(pdfData: pdfData, signaturePNG: png, signerName: name, date: Date(timeIntervalSince1970: (fresh.approvalAt ?? Date().timeIntervalSince1970*1000)/1000), sourceFilename: share.filename)
+                        let approvalDate = Date(timeIntervalSince1970: (fresh.approvalAt ?? Date().timeIntervalSince1970*1000)/1000)
+                        let signer = name, sourceFilename = share.filename, signature = png
+                        let burned = try await Task.detached(priority: .userInitiated) {
+                            let pdf = try Data(contentsOf: snapURL)
+                            return try RemoteApprovalBurn.burn(pdfData: pdf, signaturePNG: signature, signerName: signer, date: approvalDate, sourceFilename: sourceFilename)
+                        }.value
                         try burned.write(to: snapURL, options: .atomic)
                         try FileManager.default.setAttributes([.posixPermissions: 0o400], ofItemAtPath: snapURL.path)
                         fresh.size = Int64(burned.count)
                         fresh.fileHash = RemoteApprovalBurn.sha256Hex(burned)
-                    } catch { burnFailed = true }
+                        fresh.sealedAt = Date().timeIntervalSince1970 * 1000
+                    } catch {
+                        burnFailed = true
+                        fresh.sealError = "PDF could not be sealed; the signature was saved."
+                    }
                 }
                 try db.save(fresh)
                 let sidecar = SecureSharePaths.snapshots.appendingPathComponent("\(fresh.id).approval.png")

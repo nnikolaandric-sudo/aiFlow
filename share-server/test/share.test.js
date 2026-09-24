@@ -72,6 +72,32 @@ test('fragment frontend has no external assets, analytics or persistent token st
   const page=await api('/s');assert.equal(page.res.status,200);assert.match(page.res.headers.get('content-security-policy'),/default-src 'none'/);assert.equal(page.res.headers.get('cache-control'),'private, no-store');
   const js=(await api('/app.js')).data;assert.match(js,/history.replaceState/);assert.doesNotMatch(js,/localStorage|sessionStorage|https:\/\//);
 });
+test('signature approval stays sealing until the owner confirms the PDF',async()=>{
+  const s=await share({mimeType:'application/pdf',requireSignature:true});
+  const access=await session(s);
+  const png=Buffer.concat([Buffer.from([0x89,0x50,0x4e,0x47]),Buffer.alloc(240)]);
+  const signature=`data:image/png;base64,${png.toString('base64')}`;
+  const approved=await api(`/r/${access.id}/approve`,{method:'POST',cookie:access.cookie,body:{name:'Test Signer',signature}});
+  assert.equal(approved.res.status,200,JSON.stringify(approved.data));
+  assert.equal(approved.data.approvalName,'Test Signer');
+  assert.equal(approved.data.sealStatus,'sealing');
+  assert.equal(approved.data.sealedAt,null);
+  const failed=await api(`/v1/shares/${s.id}/seal-error`,{token:owner.token,body:{error:'PDF could not be sealed; retry sealing.'}});
+  assert.equal(failed.res.status,200,JSON.stringify(failed.data));
+  assert.equal(failed.data.sealStatus,'signature_failed');
+  const recipient=await api(`/r/${access.id}/metadata`,{cookie:access.cookie});
+  assert.equal(recipient.data.sealStatus,'signature_failed');
+  assert.equal(recipient.data.sealError,'PDF could not be sealed; retry sealing.');
+  const sealed=await api(`/v1/shares/${s.id}/sealed`,{token:owner.token,body:{fileHash:s.fileHash,size:s.size}});
+  assert.equal(sealed.res.status,200,JSON.stringify(sealed.data));
+  assert.equal(sealed.data.sealStatus,'sealed');
+  assert.ok(sealed.data.sealedAt);
+  const sealedAgain=await api(`/v1/shares/${s.id}/sealed`,{token:owner.token,body:{fileHash:s.fileHash,size:s.size}});
+  assert.equal(sealedAgain.res.status,200);
+  assert.equal(sealedAgain.data.sealedAt,sealed.data.sealedAt);
+  const changedSeal=await api(`/v1/shares/${s.id}/sealed`,{token:owner.token,body:{fileHash:'0'.repeat(64),size:s.size}});
+  assert.equal(changedSeal.res.status,409);
+});
 test('full, HEAD, open and suffix Range transfers preserve bytes and count once per session',async()=>{
   const s=await share(), access=await session(s);
   const head=await content(access,{},'HEAD');assert.equal(head.res.status,200);assert.equal(head.data,'');assert.equal((await store.share(s.id)).download_count,0);

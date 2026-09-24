@@ -17,6 +17,7 @@ final class SecureShareManager: ObservableObject {
     private let relay = SecureShareRelayClient(appFallback: true)
     private let service = SMAppService.agent(plistName: "com.finderflow.share-agent.plist")
     private var sealing = Set<String>()
+    private var refreshing = false
     private init() {
         do { let db = try SecureShareDatabase(); configuration = try db.configuration(); shares = try db.shares() }
         catch { message = error.localizedDescription }
@@ -26,9 +27,15 @@ final class SecureShareManager: ObservableObject {
             try? SecureShareDatabase().configure(configuration!)
         }
         Task { [weak self] in
+            var nextManagedRefresh = Date.distantPast
             while let self {
                 await self.updateAgent()
-                if self.configuration?.mode == "quick" { await self.refresh() }
+                if self.configuration?.mode == "quick" {
+                    await self.refresh()
+                } else if Date().timeIntervalSince(nextManagedRefresh) >= 5 {
+                    nextManagedRefresh = Date()
+                    await self.refresh()
+                }
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
             }
         }
@@ -85,6 +92,9 @@ final class SecureShareManager: ObservableObject {
         } catch { message = "Background agent: \(error.localizedDescription). Sharing continues while aiFlow is running." }
     }
     func refresh() async {
+        guard !refreshing else { return }
+        refreshing = true
+        defer { refreshing = false }
         do {
             let db = try SecureShareDatabase(); shares = try db.shares()
             guard let config = configuration else { return }
@@ -111,17 +121,34 @@ final class SecureShareManager: ObservableObject {
                 guard let id = row["id"] as? String,
                       let approval = row["approvalName"] as? String,
                       !approval.isEmpty,
-                      var local = try db.share(id),
-                      local.approvalName == nil else { continue }
-                local.approvalName = approval
-                local.approvalAt = row["approvalAt"] as? Double
-                if let serverName = row["filename"] as? String, !serverName.isEmpty {
-                    local.filename = serverName
+                      var local = try db.share(id) else { continue }
+                if local.approvalName == nil {
+                    local.approvalName = approval
+                    local.approvalAt = row["approvalAt"] as? Double
+                    local.sealedAt = row["sealedAt"] as? Double
+                    local.sealError = row["sealError"] as? String
+                    if let serverName = row["filename"] as? String, !serverName.isEmpty {
+                        local.filename = serverName
+                    } else {
+                        local.filename = SecureShareRecord.approvedFilename(original: local.filename, signer: approval)
+                    }
+                    try db.save(local); changed = true
+                    newlyApproved.append(id)
                 } else {
-                    local.filename = SecureShareRecord.approvedFilename(original: local.filename, signer: approval)
+                    if let serverError = row["sealError"] as? String, !serverError.isEmpty, local.sealError != serverError {
+                        local.sealError = serverError
+                        try db.save(local); changed = true
+                    }
+                    if let sealedAt = row["sealedAt"] as? Double, local.sealedAt != sealedAt {
+                        local.sealedAt = sealedAt
+                        local.sealError = nil
+                        try db.save(local); changed = true
+                    }
+                    if local.mimeType == "application/pdf", local.sealedAt == nil,
+                       local.sealError == nil || local.sealError == "Sealed locally; waiting to sync" {
+                        newlyApproved.append(id)
+                    }
                 }
-                try db.save(local); changed = true
-                newlyApproved.append(id)
             }
             if changed { shares = try db.shares() }
             for id in newlyApproved { Task { await self.sealApprovedShare(id) } }
@@ -318,56 +345,118 @@ final class SecureShareManager: ObservableObject {
             return result["approvalSignature"] as? String
         } catch { return nil }
     }
-    /// Managed lazy seal: posle refresh-synca approvala ureži potpis u lokalni
-    /// PDF snapshot i gurni novi hash/size na server (/sealed). Samo PDF;
-    /// ostalo ostaje sidecar + rename. Marker `.sealed` sprečava retry petlju.
     private func sealApprovedShare(_ id: String) async {
         guard !sealing.contains(id) else { return }
         sealing.insert(id); defer { sealing.remove(id) }
         do {
-            guard let config = configuration, config.mode != "quick", !config.origin.isEmpty else { return }
+            guard let config = configuration else { return }
             guard var local = try SecureShareDatabase().share(id),
                   let signer = local.approvalName, !signer.isEmpty,
                   local.status == "active",
                   local.mimeType == "application/pdf" else { return }
+            if local.sealedAt != nil { return }
             let marker = SecureSharePaths.snapshots.appendingPathComponent("\(id).sealed")
-            if FileManager.default.fileExists(atPath: marker.path) { return }
+            if let value = try? String(contentsOf: marker, encoding: .utf8) {
+                if value.trimmingCharacters(in: .whitespacesAndNewlines) == "sealed" {
+                    local.sealedAt = Date().timeIntervalSince1970 * 1000
+                    local.sealError = nil
+                    try SecureShareDatabase().save(local)
+                    try? reloadLocal()
+                    return
+                }
+            }
             let snapURL = SecureSharePaths.snapshots.appendingPathComponent(id)
             guard FileManager.default.fileExists(atPath: snapURL.path) else { return }
+
+            if config.mode == "quick" {
+                let sidecar = SecureSharePaths.snapshots.appendingPathComponent("\(id).approval.png")
+                guard let png = try? Data(contentsOf: sidecar) else {
+                    local.sealError = "The signature image is missing; retry sealing."
+                    try SecureShareDatabase().save(local)
+                    try? reloadLocal()
+                    return
+                }
+                let approvalDate = local.approvalAt.map { Date(timeIntervalSince1970: $0/1000) } ?? Date()
+                let signerCopy = signer, fileCopy = local.filename
+                do {
+                    let burned = try await Task.detached(priority: .userInitiated) {
+                        let pdf = try Data(contentsOf: snapURL)
+                        return try RemoteApprovalBurn.burn(pdfData: pdf, signaturePNG: png, signerName: signerCopy, date: approvalDate, sourceFilename: fileCopy)
+                    }.value
+                    try burned.write(to: snapURL, options: .atomic)
+                    try FileManager.default.setAttributes([.posixPermissions: 0o400], ofItemAtPath: snapURL.path)
+                    local.size = Int64(burned.count)
+                    local.fileHash = RemoteApprovalBurn.sha256Hex(burned)
+                    local.sealedAt = Date().timeIntervalSince1970 * 1000
+                    local.sealError = nil
+                    try SecureShareDatabase().save(local)
+                    try? "sealed".write(to: marker, atomically: true, encoding: .utf8)
+                    try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: marker.path)
+                    try? reloadLocal()
+                    await refresh()
+                } catch {
+                    local.sealError = "PDF could not be sealed; retry sealing."
+                    try SecureShareDatabase().save(local)
+                    try? reloadLocal()
+                }
+                return
+            }
+
             let api = SecureShareAPI(origin: config.origin)
             let token = try await api.authenticate(deviceId: config.deviceId)
-            let approval = try await api.request("/v1/shares/\(id)/approval", method: "GET", token: token)
-            guard let dataURL = approval["approvalSignature"] as? String,
-                  dataURL.hasPrefix("data:image/png;base64,"),
-                  let png = Data(base64Encoded: String(dataURL.dropFirst(22))) else {
-                try? "missing".write(to: marker, atomically: true, encoding: .utf8)
-                return
+            if local.sealError != "Sealed locally; waiting to sync" {
+                let approval = try await api.request("/v1/shares/\(id)/approval", method: "GET", token: token)
+                 guard let dataURL = approval["approvalSignature"] as? String,
+                       dataURL.hasPrefix("data:image/png;base64,"),
+                       let png = Data(base64Encoded: String(dataURL.dropFirst(22))) else {
+                     let reason = "The signature image is missing; retry sealing."
+                     local.sealError = reason
+                     try SecureShareDatabase().save(local)
+                     _ = try? await api.request("/v1/shares/\(id)/seal-error", body: ["error": reason], token: token)
+                     try? "missing".write(to: marker, atomically: true, encoding: .utf8)
+                     try? reloadLocal()
+                     return
+                 }
+
+                let approvalDate = local.approvalAt.map { Date(timeIntervalSince1970: $0/1000) } ?? Date()
+                let signerCopy = signer, fileCopy = local.filename
+                do {
+                    let burned = try await Task.detached(priority: .userInitiated) {
+                        let pdf = try Data(contentsOf: snapURL)
+                        return try RemoteApprovalBurn.burn(pdfData: pdf, signaturePNG: png, signerName: signerCopy, date: approvalDate, sourceFilename: fileCopy)
+                    }.value
+                    try burned.write(to: snapURL, options: .atomic)
+                    try FileManager.default.setAttributes([.posixPermissions: 0o400], ofItemAtPath: snapURL.path)
+                    local.size = Int64(burned.count)
+                    local.fileHash = RemoteApprovalBurn.sha256Hex(burned)
+                    local.sealError = "Sealed locally; waiting to sync"
+                    try SecureShareDatabase().save(local)
+                 } catch {
+                     let reason = "PDF could not be sealed; retry sealing."
+                     local.sealError = reason
+                     try SecureShareDatabase().save(local)
+                     _ = try? await api.request("/v1/shares/\(id)/seal-error", body: ["error": reason], token: token)
+                     try? "unburnable".write(to: marker, atomically: true, encoding: .utf8)
+                     try? reloadLocal()
+                     return
+                 }
+
             }
-            let approvalDate = local.approvalAt.map { Date(timeIntervalSince1970: $0/1000) } ?? Date()
-            let signerCopy = signer, fileCopy = local.filename
-            let burned: Data
-            do {
-                burned = try await Task.detached(priority: .userInitiated) {
-                    let pdf = try Data(contentsOf: snapURL)
-                    return try RemoteApprovalBurn.burn(pdfData: pdf, signaturePNG: png, signerName: signerCopy, date: approvalDate, sourceFilename: fileCopy)
-                }.value
-            } catch {
-                // Zaključan ili nečitljiv PDF: ne retry-uj, ostaje sidecar + rename.
-                try? "unburnable".write(to: marker, atomically: true, encoding: .utf8)
-                try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: marker.path)
-                return
-            }
-            try burned.write(to: snapURL, options: .atomic)
-            try FileManager.default.setAttributes([.posixPermissions: 0o400], ofItemAtPath: snapURL.path)
-            local.size = Int64(burned.count)
-            local.fileHash = RemoteApprovalBurn.sha256Hex(burned)
-            try SecureShareDatabase().save(local)
             _ = try await api.request("/v1/shares/\(id)/sealed", body: ["fileHash": local.fileHash, "size": local.size], token: token)
+            local.sealedAt = Date().timeIntervalSince1970 * 1000
+            local.sealError = nil
+            try SecureShareDatabase().save(local)
             try? "sealed".write(to: marker, atomically: true, encoding: .utf8)
             try? FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: marker.path)
             try? reloadLocal()
             await refresh()
-        } catch { /* mrežna greška → retry na sledeći refresh, bez markera */ }
+        } catch {
+            try? reloadLocal()
+        }
+    }
+
+    func retrySealing(_ record: SecureShareRecord) {
+        Task { await sealApprovedShare(record.id) }
     }
 }
 
@@ -572,34 +661,37 @@ struct SecureShareView: View {
         let approval = share.approvalName ?? (data?["approvalName"] as? String)
         let approvalAt = share.approvalAt ?? (data?["approvalAt"] as? Double)
         let wantsSign = share.requireSignature || (data?["requireSignature"] as? Bool ?? false)
-        let sealedNote: String? = {
-            guard let approval, !approval.isEmpty else { return nil }
-            if share.mimeType == "application/pdf" { return "sealed in PDF" }
-            return "signature saved"
-        }()
+        let signatureState = share.signatureStatus
         return GroupBox {
             VStack(alignment: .leading, spacing: 8) {
                 HStack { Text(share.filename).fontWeight(.medium).lineLimit(1); Spacer(); Text(status).font(.caption).foregroundStyle(.secondary) }
                 Text("\(data?["viewCount"] as? Int ?? 0) views · \(data?["downloadCount"] as? Int ?? 0) download sessions").font(.caption).foregroundStyle(.secondary)
-                if wantsSign {
-                    if let approval, !approval.isEmpty {
-                        HStack(spacing: 6) {
-                            Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
-                            Text("Signed by \(approval)").font(.caption).foregroundStyle(.green)
-                            if let sealedNote { Text("· \(sealedNote)").font(.caption).foregroundStyle(.secondary) }
-                            if let approvalAt { Text("· \(Date(timeIntervalSince1970: approvalAt/1000).formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(.secondary) }
+                if let approval, !approval.isEmpty {
+                    let sealColor: Color = signatureState == "sealed" || signatureState == "signature_saved" ? .green : .orange
+                    let sealIcon = signatureState == "signature_failed" ? "exclamationmark.triangle.fill" : (signatureState == "sealing" ? "hourglass" : "checkmark.seal.fill")
+                    let sealNote: String? = {
+                        switch signatureState {
+                        case "sealed": return "sealed in PDF"
+                        case "signature_saved": return "signature saved"
+                        case "sealing": return "sealing PDF…"
+                        case "signature_failed": return share.sealError ?? "PDF not sealed"
+                        default: return nil
                         }
-                    } else {
-                        HStack(spacing: 6) {
-                            Image(systemName: "hourglass").foregroundStyle(.orange)
-                            Text("Waiting for signature…").font(.caption).foregroundStyle(.orange)
-                        }
-                    }
-                } else if let approval, !approval.isEmpty {
+                    }()
                     HStack(spacing: 6) {
-                        Image(systemName: "checkmark.seal.fill").foregroundStyle(.green)
-                        Text("Signed by \(approval)").font(.caption).foregroundStyle(.green)
-                        if let sealedNote { Text("· \(sealedNote)").font(.caption).foregroundStyle(.secondary) }
+                        Image(systemName: sealIcon).foregroundStyle(sealColor)
+                        Text("Signed by \(approval)").font(.caption).foregroundStyle(sealColor)
+                        if let sealNote { Text("· \(sealNote)").font(.caption).foregroundStyle(sealColor) }
+                        if signatureState == "signature_failed" {
+                            Button("Retry sealing") { manager.retrySealing(share) }
+                                .buttonStyle(.link).font(.caption)
+                        }
+                        if let approvalAt { Text("· \(Date(timeIntervalSince1970: approvalAt/1000).formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(.secondary) }
+                    }
+                } else if wantsSign {
+                    HStack(spacing: 6) {
+                        Image(systemName: "hourglass").foregroundStyle(.orange)
+                        Text("Waiting for signature…").font(.caption).foregroundStyle(.orange)
                     }
                 }
                 if let expiry = (data?["expiresAt"] as? Double) ?? (data == nil ? share.expiresAt : nil) { Text("Expires \(Date(timeIntervalSince1970: expiry/1000).formatted())").font(.caption).foregroundStyle(.secondary) }

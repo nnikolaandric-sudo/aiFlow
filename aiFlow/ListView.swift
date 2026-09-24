@@ -68,7 +68,10 @@ enum FilterColumn: String, CaseIterable, Identifiable {
                 break
             }
         }
-        guard let num = Double(q.replacingOccurrences(of: ",", with: ".")) else { return false }
+        guard let num = Double(q.replacingOccurrences(of: ",", with: ".")),
+              num.isFinite,
+              num >= 0,
+              num <= Double(Int64.max) / mult else { return false }
         return op(bytes, Int64(num * mult))
     }
 
@@ -988,7 +991,7 @@ struct GroupedRowContainer: View {
         // `contextMenu(forSelectionType:)` on the List — a menu built per row
         // filtered the whole folder once per row on every render.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(item.name), \(item.kind)")
+        .accessibilityLabel("\(item.name), \(item.kind), \(GitService.shared.status(for: item.url)?.state.label ?? "clean")")
     }
 
     private var renameField: some View {
