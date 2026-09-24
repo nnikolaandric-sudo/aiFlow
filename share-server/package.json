@@ -1,0 +1,7 @@
+{
+  "name": "finderflow-share-server", "version": "1.0.0", "private": true, "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "start": "node src/main.js", "test": "node --test test/*.test.js" },
+  "dependencies": { "ws": "^8.18.3", "pg": "^8.16.3", "argon2": "^0.44.0" },
+  "devDependencies": { "@electric-sql/pglite": "^0.3.10" }
+}

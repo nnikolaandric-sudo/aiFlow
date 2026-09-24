@@ -1,0 +1,7 @@
+{
+  "version": "2026.9.1",
+  "assets": {
+    "arm64": {"name":"cloudflared-darwin-arm64.tgz","sha256":"c27ab8fd0aa489449e3d201eb02f957ef460a13b613662928b1b23394bf1bcfe"},
+    "x86_64": {"name":"cloudflared-darwin-amd64.tgz","sha256":"ff0d3b51d5ff70eceef89d6b32145fee985018a2174596a5dbe405e2766e2ac4"}
+  }
+}

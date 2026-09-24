@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: finderflow
+      POSTGRES_USER: finderflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set a database password}
+    volumes: ["metadata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finderflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+  relay:
+    build: .
+    environment:
+      DATABASE_URL: postgres://finderflow:${POSTGRES_PASSWORD}@db:5432/finderflow
+      PUBLIC_ORIGIN: https://${SHARE_DOMAIN:?Set your share hostname}
+      ENROLLMENT_CODE: ${ENROLLMENT_CODE:?Set a random enrollment code}
+    depends_on:
+      db: {condition: service_healthy}
+    restart: unless-stopped
+  proxy:
+    image: caddy:2-alpine
+    ports: ["443:443", "80:80"]
+    environment:
+      SHARE_DOMAIN: ${SHARE_DOMAIN}
+    volumes: ["./Caddyfile:/etc/caddy/Caddyfile:ro", "tls:/data", "caddy_config:/config"]
+    depends_on: [relay]
+    restart: unless-stopped
+volumes:
+  metadata:
+  tls:
+  caddy_config:

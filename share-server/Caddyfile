@@ -1,0 +1,6 @@
+{$SHARE_DOMAIN} {
+  # Access logs are deliberately not enabled: session routes carry identifiers.
+  reverse_proxy relay:8787 {
+    flush_interval -1
+  }
+}

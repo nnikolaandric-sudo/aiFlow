@@ -1,0 +1,27 @@
+// Local-only browser QA with synthetic data and the real Swift agent. Never deploy.
+import { PGlite } from '@electric-sql/pglite';
+import { generateKeyPairSync,randomUUID } from 'node:crypto';
+import { mkdtemp,writeFile,rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { fileURLToPath } from 'node:url';
+import { spawn,execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { Store } from '../src/store.js';
+import { createServer } from '../src/server.js';
+import { hash,secret } from '../src/security.js';
+const dir=await mkdtemp(tmpdir()+'/ff-share-preview-');
+const db=new PGlite(),store=new Store(db);await store.init();
+const origin='http://127.0.0.1:8787',app=await createServer({store,origin,enrollmentCode:secret(),allowHTTP:true});
+await new Promise(resolve=>app.server.listen(8787,'127.0.0.1',resolve));
+const keys=generateKeyPairSync('ed25519'),id=randomUUID();
+await store.register(id,keys.publicKey.export({format:'der',type:'spki'}).toString('base64'),'Browser QA',Date.now());
+await writeFile(dir+'/key',keys.privateKey.export({format:'der',type:'pkcs8'}).subarray(-32),{mode:0o600});
+await writeFile(dir+'/Project overview.txt','FinderFlow secure share — synthetic browser QA document.\nThe original stays on the Mac.\n');
+const env={...process.env,FF_SHARE_DIR:dir+'/registry',FF_SHARE_TEST_MODE:'1',FF_SHARE_TEST_KEY:dir+'/key'};
+const seed=fileURLToPath(new URL('../../build/local/share-test/seed',import.meta.url));
+const r=JSON.parse((await promisify(execFile)(seed,['seed',origin,id,dir+'/Project overview.txt'],{env})).stdout),token=secret();
+await store.create({id:r.id,device_id:id,token_hash:hash(token),filename:r.filename,mime_type:r.mimeType,file_size:r.size,file_hash:r.fileHash,allow_preview:true,allow_download:true,password_hash:null,created_at:Date.now(),expires_at:Date.now()+3600000,max_downloads:null});
+const agent=spawn(fileURLToPath(new URL('../../build/local/share-test/agent',import.meta.url)),[],{env,stdio:'ignore'});
+console.log(`${origin}/s#${token}`);
+console.log(`QA registry: ${dir}/registry`);
+for(const signal of ['SIGINT','SIGTERM'])process.on(signal,async()=>{agent.kill();await app.close();await db.close();await rm(dir,{recursive:true,force:true});process.exit(0);});

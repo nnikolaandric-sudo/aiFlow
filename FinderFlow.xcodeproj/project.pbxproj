@@ -1,0 +1,756 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		777777777777777777770010 /* QuickShareRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777777777777777777770009; };
+		777777777777777777770008 /* QuickShareServer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777777777777777777770007; };
+		AAAAAAAAAAAAAAAAAAAA0020 /* FinderFlowApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0010 /* FinderFlowApp.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0021 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0011 /* ContentView.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0022 /* PathBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0012 /* PathBarView.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0023 /* SearchScopeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0013 /* SearchScopeView.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0024 /* QuickActionsToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0014 /* QuickActionsToolbar.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0025 /* FolderCreationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0015 /* FolderCreationService.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0026 /* SearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0016 /* SearchEngine.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0027 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0018 /* Assets.xcassets */; };
+		AAAAAAAAAAAAAAAAAAAA0028 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA001A /* SidebarView.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0050 /* FinderSyncExtension.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0040 /* FinderSyncExtension.swift */; };
+		AAAAAAAAAAAAAAAAAAAA0062 /* FinderFlowExtension.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0042 /* FinderFlowExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AAAAAAAAAAAAAAAAAAAA0071 /* FinderSync.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = AAAAAAAAAAAAAAAAAAAA0070 /* FinderSync.framework */; };
+		BBBBBBBBBBBBBBBBBBBB0002 /* FileItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBBBBBBBBBBBBBBBBBB0001 /* FileItem.swift */; };
+		BBBBBBBBBBBBBBBBBBBB0004 /* ListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBBBBBBBBBBBBBBBBBB0003 /* ListView.swift */; };
+		BBBBBBBBBBBBBBBBBBBB0006 /* IconsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBBBBBBBBBBBBBBBBBB0005 /* IconsView.swift */; };
+		BBBBBBBBBBBBBBBBBBBB0008 /* ColumnsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBBBBBBBBBBBBBBBBBB0007 /* ColumnsView.swift */; };
+		BBBBBBBBBBBBBBBBBBBB000A /* StatusBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBBBBBBBBBBBBBBBBBBB0009 /* StatusBarView.swift */; };
+		EEEEEEEEEEEEEEEEEEEE0002 /* FileDragSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEEEEEEEEEEEEEEEEEEE0001 /* FileDragSupport.swift */; };
+		CCCCCCCCCCCCCCCCCCCC0002 /* MarkdownReaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCCCCCCCCCCCCCCCCCCC0001 /* MarkdownReaderView.swift */; };
+		CCCCCCCCCCCCCCCCCCCC0004 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCCCCCCCCCCCCCCCCCCC0003 /* SettingsView.swift */; };
+		CCCCCCCCCCCCCCCCCCCC0006 /* CodeEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCCCCCCCCCCCCCCCCCCC0005 /* CodeEditorView.swift */; };
+		FFFFFFFFFFFFFFFF0002 /* UserPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFFFFFFFFFFFFFF0001 /* UserPreferences.swift */; };
+		FFFFFFFFFFFFFFFF0004 /* UpdateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFFFFFFFFFFFFFF0003 /* UpdateManager.swift */; };
+		FFFFFFFFFFFFFFFF0006 /* ErrorReportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFFFFFFFFFFFFFF0005 /* ErrorReportSheet.swift */; };
+		FFFFFFFFFFFFFFFF0008 /* MarkdownFormatActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFFFFFFFFFFFFFF0007 /* MarkdownFormatActions.swift */; };
+		FFFFFFFFFFFFFFFF000A /* MarkdownEditorController.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFFFFFFFFFFFFFF0009 /* MarkdownEditorController.swift */; };
+		FFFFFFFFFFFFFFFF000C /* FirstRunSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FFFFFFFFFFFFFFFF000B /* FirstRunSheet.swift */; };
+		DDDDDDDDDDDDDDDDDDDD0002 /* AceEditor in Resources */ = {isa = PBXBuildFile; fileRef = DDDDDDDDDDDDDDDDDDDD0001 /* AceEditor */; };
+		1111111111110002 /* FuzzySearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1111111111110001 /* FuzzySearch.swift */; };
+		1111111111110004 /* DirectoryCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1111111111110003 /* DirectoryCache.swift */; };
+		1111111111110006 /* ArchiveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1111111111110005 /* ArchiveService.swift */; };
+		1111111111110008 /* PreviewHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1111111111110007 /* PreviewHelpers.swift */; };
+		111111111111000A /* NavigationUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1111111111110009 /* NavigationUI.swift */; };
+		111111111111000C /* DualPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111000B /* DualPaneView.swift */; };
+		111111111111000E /* BatchRenameSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111000D /* BatchRenameSheet.swift */; };
+		1111111111110010 /* FileContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 111111111111000F /* FileContextMenu.swift */; };
+		1111111111110012 /* OpenWithService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1111111111110011 /* OpenWithService.swift */; };
+		1111111111110014 /* SelectionActionBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1111111111110013 /* SelectionActionBar.swift */; };
+		1111111111110016 /* FolderSizeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1111111111110015 /* FolderSizeService.swift */; };
+		2222222222220002 /* AIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2222222222220001 /* AIService.swift */; };
+		2222222222220004 /* AIOrganizerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2222222222220003 /* AIOrganizerEngine.swift */; };
+		2222222222220006 /* AIOrganizerSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2222222222220005 /* AIOrganizerSheet.swift */; };
+		2222222222220008 /* DiscordShareService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2222222222220007 /* DiscordShareService.swift */; };
+		3333333333330002 /* GoogleDriveAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3333333333330001 /* GoogleDriveAccount.swift */; };
+		3333333333330004 /* GoogleDriveAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3333333333330003 /* GoogleDriveAPI.swift */; };
+		3333333333330006 /* GoogleDriveOAuth.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3333333333330005 /* GoogleDriveOAuth.swift */; };
+		3333333333330008 /* GoogleDriveSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3333333333330007 /* GoogleDriveSyncService.swift */; };
+		333333333333000A /* GoogleDriveUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3333333333330009 /* GoogleDriveUI.swift */; };
+		333333333333000C /* GoogleDriveBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 333333333333000B /* GoogleDriveBadge.swift */; };
+		2222222222220010 /* FileDropSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2222222222220009 /* FileDropSupport.swift */; };
+		2222222222220012 /* SendToDiscordSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2222222222220011 /* SendToDiscordSheet.swift */; };
+		4444444444440002 /* PDFInspector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4444444444440001 /* PDFInspector.swift */; };
+		5555555555550002 /* SignaturePad.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5555555555550001 /* SignaturePad.swift */; };
+		5555555555550004 /* ESignEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5555555555550003 /* ESignEngine.swift */; };
+		5555555555550006 /* ESignWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5555555555550005 /* ESignWindow.swift */; };
+		5555555555550008 /* SignatureCreatorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5555555555550007 /* SignatureCreatorSheet.swift */; };
+		6666666666660002 /* MailModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6666666666660001 /* MailModels.swift */; };
+		6666666666660004 /* MailStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6666666666660003 /* MailStore.swift */; };
+		6666666666660006 /* MailEmlParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6666666666660005 /* MailEmlParser.swift */; };
+		6666666666660008 /* MailClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6666666666660007 /* MailClassifier.swift */; };
+		666666666666000A /* MailRulesEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6666666666660009 /* MailRulesEngine.swift */; };
+		666666666666000C /* MailFilingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666000B /* MailFilingService.swift */; };
+		666666666666000E /* MailInboxView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666000D /* MailInboxView.swift */; };
+		6666666666660010 /* MailInboxWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 666666666666000F /* MailInboxWindow.swift */; };
+		7777777777770002 /* MailSources.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7777777777770001 /* MailSources.swift */; };
+		7777777777770004 /* FinderReveal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7777777777770003 /* FinderReveal.swift */; };
+		6666666666660012 /* ShortcutsReference.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6666666666660011 /* ShortcutsReference.swift */; };
+		777777777777777777770002 /* SecureShareCore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777777777777777777770001 /* SecureShareCore.swift */; };
+		777777777777777777770004 /* SecureShareRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777777777777777777770003 /* SecureShareRelay.swift */; };
+		777777777777777777770006 /* SecureShareUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777777777777777777770005 /* SecureShareUI.swift */; };
+		8888888888880002 /* MailAttachService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8888888888880001 /* MailAttachService.swift */; };
+		8888888888880004 /* MailAttachPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8888888888880003 /* MailAttachPicker.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		AAAAAAAAAAAAAAAAAAAA0060 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = AAAAAAAAAAAAAAAAAAAA0001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = AAAAAAAAAAAAAAAAAAAA0030;
+			remoteInfo = FinderFlowExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		AAAAAAAAAAAAAAAAAAAA0037 /* Embed App Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				AAAAAAAAAAAAAAAAAAAA0062 /* FinderFlowExtension.appex in Embed App Extensions */,
+			);
+			name = "Embed App Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		777777777777777777770009 /* QuickShareRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickShareRuntime.swift; sourceTree = "<group>"; };
+		777777777777777777770007 /* QuickShareServer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickShareServer.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA000F /* FinderFlow.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FinderFlow.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAAAAAAAAAAAAAAAAAAA0010 /* FinderFlowApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderFlowApp.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0011 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0012 /* PathBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PathBarView.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0013 /* SearchScopeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchScopeView.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0014 /* QuickActionsToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionsToolbar.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0015 /* FolderCreationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderCreationService.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0016 /* SearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchEngine.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA001A /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0017 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0018 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA001B /* FinderFlow.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FinderFlow.entitlements; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0040 /* FinderSyncExtension.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderSyncExtension.swift; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0041 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA001C /* FinderFlowExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FinderFlowExtension.entitlements; sourceTree = "<group>"; };
+		AAAAAAAAAAAAAAAAAAAA0042 /* FinderFlowExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = FinderFlowExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		AAAAAAAAAAAAAAAAAAAA0070 /* FinderSync.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = FinderSync.framework; path = System/Library/Frameworks/FinderSync.framework; sourceTree = SDKROOT; };
+		BBBBBBBBBBBBBBBBBBBB0001 /* FileItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileItem.swift; sourceTree = "<group>"; };
+		BBBBBBBBBBBBBBBBBBBB0003 /* ListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListView.swift; sourceTree = "<group>"; };
+		BBBBBBBBBBBBBBBBBBBB0005 /* IconsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconsView.swift; sourceTree = "<group>"; };
+		BBBBBBBBBBBBBBBBBBBB0007 /* ColumnsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColumnsView.swift; sourceTree = "<group>"; };
+		BBBBBBBBBBBBBBBBBBBB0009 /* StatusBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBarView.swift; sourceTree = "<group>"; };
+		EEEEEEEEEEEEEEEEEEEE0001 /* FileDragSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDragSupport.swift; sourceTree = "<group>"; };
+		CCCCCCCCCCCCCCCCCCCC0001 /* MarkdownReaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownReaderView.swift; sourceTree = "<group>"; };
+		CCCCCCCCCCCCCCCCCCCC0003 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		CCCCCCCCCCCCCCCCCCCC0005 /* CodeEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodeEditorView.swift; sourceTree = "<group>"; };
+		FFFFFFFFFFFFFFFF0001 /* UserPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserPreferences.swift; sourceTree = "<group>"; };
+		FFFFFFFFFFFFFFFF0003 /* UpdateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateManager.swift; sourceTree = "<group>"; };
+		FFFFFFFFFFFFFFFF0005 /* ErrorReportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorReportSheet.swift; sourceTree = "<group>"; };
+		FFFFFFFFFFFFFFFF0007 /* MarkdownFormatActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownFormatActions.swift; sourceTree = "<group>"; };
+		FFFFFFFFFFFFFFFF0009 /* MarkdownEditorController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditorController.swift; sourceTree = "<group>"; };
+		FFFFFFFFFFFFFFFF000B /* FirstRunSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirstRunSheet.swift; sourceTree = "<group>"; };
+		1111111111110001 /* FuzzySearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FuzzySearch.swift; sourceTree = "<group>"; };
+		1111111111110003 /* DirectoryCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectoryCache.swift; sourceTree = "<group>"; };
+		1111111111110005 /* ArchiveService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveService.swift; sourceTree = "<group>"; };
+		1111111111110007 /* PreviewHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewHelpers.swift; sourceTree = "<group>"; };
+		1111111111110009 /* NavigationUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationUI.swift; sourceTree = "<group>"; };
+		111111111111000B /* DualPaneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualPaneView.swift; sourceTree = "<group>"; };
+		111111111111000D /* BatchRenameSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BatchRenameSheet.swift; sourceTree = "<group>"; };
+		111111111111000F /* FileContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileContextMenu.swift; sourceTree = "<group>"; };
+		1111111111110011 /* OpenWithService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenWithService.swift; sourceTree = "<group>"; };
+		1111111111110013 /* SelectionActionBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionActionBar.swift; sourceTree = "<group>"; };
+		1111111111110015 /* FolderSizeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderSizeService.swift; sourceTree = "<group>"; };
+		2222222222220001 /* AIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIService.swift; sourceTree = "<group>"; };
+		2222222222220003 /* AIOrganizerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIOrganizerEngine.swift; sourceTree = "<group>"; };
+		2222222222220005 /* AIOrganizerSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIOrganizerSheet.swift; sourceTree = "<group>"; };
+		2222222222220007 /* DiscordShareService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscordShareService.swift; sourceTree = "<group>"; };
+		3333333333330001 /* GoogleDriveAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveAccount.swift; sourceTree = "<group>"; };
+		3333333333330003 /* GoogleDriveAPI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveAPI.swift; sourceTree = "<group>"; };
+		3333333333330005 /* GoogleDriveOAuth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveOAuth.swift; sourceTree = "<group>"; };
+		3333333333330007 /* GoogleDriveSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveSyncService.swift; sourceTree = "<group>"; };
+		3333333333330009 /* GoogleDriveUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveUI.swift; sourceTree = "<group>"; };
+		333333333333000B /* GoogleDriveBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleDriveBadge.swift; sourceTree = "<group>"; };
+		2222222222220009 /* FileDropSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileDropSupport.swift; sourceTree = "<group>"; };
+		2222222222220011 /* SendToDiscordSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SendToDiscordSheet.swift; sourceTree = "<group>"; };
+		4444444444440001 /* PDFInspector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFInspector.swift; sourceTree = "<group>"; };
+		DDDDDDDDDDDDDDDDDDDD0001 /* AceEditor */ = {isa = PBXFileReference; lastKnownFileType = folder; path = AceEditor; sourceTree = "<group>"; };
+		5555555555550001 /* SignaturePad.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignaturePad.swift; sourceTree = "<group>"; };
+		5555555555550003 /* ESignEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ESignEngine.swift; sourceTree = "<group>"; };
+		5555555555550005 /* ESignWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ESignWindow.swift; sourceTree = "<group>"; };
+		5555555555550007 /* SignatureCreatorSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignatureCreatorSheet.swift; sourceTree = "<group>"; };
+		6666666666660001 /* MailModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailModels.swift; sourceTree = "<group>"; };
+		6666666666660003 /* MailStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailStore.swift; sourceTree = "<group>"; };
+		6666666666660005 /* MailEmlParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailEmlParser.swift; sourceTree = "<group>"; };
+		6666666666660007 /* MailClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailClassifier.swift; sourceTree = "<group>"; };
+		6666666666660009 /* MailRulesEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailRulesEngine.swift; sourceTree = "<group>"; };
+		666666666666000B /* MailFilingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailFilingService.swift; sourceTree = "<group>"; };
+		666666666666000D /* MailInboxView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailInboxView.swift; sourceTree = "<group>"; };
+		666666666666000F /* MailInboxWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailInboxWindow.swift; sourceTree = "<group>"; };
+		7777777777770001 /* MailSources.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailSources.swift; sourceTree = "<group>"; };
+		7777777777770003 /* FinderReveal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FinderReveal.swift; sourceTree = "<group>"; };
+		6666666666660011 /* ShortcutsReference.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsReference.swift; sourceTree = "<group>"; };
+		777777777777777777770001 /* SecureShareCore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureShareCore.swift; sourceTree = "<group>"; };
+		777777777777777777770003 /* SecureShareRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureShareRelay.swift; sourceTree = "<group>"; };
+		777777777777777777770005 /* SecureShareUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SecureShareUI.swift; sourceTree = "<group>"; };
+		8888888888880001 /* MailAttachService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailAttachService.swift; sourceTree = "<group>"; };
+		8888888888880003 /* MailAttachPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailAttachPicker.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AAAAAAAAAAAAAAAAAAAA000B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAAAAAAAAAAAAAAAAAAA0036 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAAAAAAAAAAAAAAAAAAA0071 /* FinderSync.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		AAAAAAAAAAAAAAAAAAAA000C /* FinderFlow */ = {
+			isa = PBXGroup;
+			children = (
+				AAAAAAAAAAAAAAAAAAAA000E /* FinderFlow */,
+				AAAAAAAAAAAAAAAAAAAA006F /* FinderFlowExtension */,
+				AAAAAAAAAAAAAAAAAAAA0072 /* Frameworks */,
+				AAAAAAAAAAAAAAAAAAAA000D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AAAAAAAAAAAAAAAAAAAA000D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AAAAAAAAAAAAAAAAAAAA000F /* FinderFlow.app */,
+				AAAAAAAAAAAAAAAAAAAA0042 /* FinderFlowExtension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AAAAAAAAAAAAAAAAAAAA000E /* FinderFlow */ = {
+			isa = PBXGroup;
+			children = (
+				AAAAAAAAAAAAAAAAAAAA0010 /* FinderFlowApp.swift */,
+				777777777777777777770007 /* QuickShareServer.swift */,
+				777777777777777777770009 /* QuickShareRuntime.swift */,
+				777777777777777777770005 /* SecureShareUI.swift */,
+				777777777777777777770003 /* SecureShareRelay.swift */,
+				777777777777777777770001 /* SecureShareCore.swift */,
+				AAAAAAAAAAAAAAAAAAAA0011 /* ContentView.swift */,
+				AAAAAAAAAAAAAAAAAAAA0012 /* PathBarView.swift */,
+				AAAAAAAAAAAAAAAAAAAA0013 /* SearchScopeView.swift */,
+				AAAAAAAAAAAAAAAAAAAA0014 /* QuickActionsToolbar.swift */,
+				AAAAAAAAAAAAAAAAAAAA0015 /* FolderCreationService.swift */,
+				AAAAAAAAAAAAAAAAAAAA0016 /* SearchEngine.swift */,
+				AAAAAAAAAAAAAAAAAAAA001A /* SidebarView.swift */,
+				AAAAAAAAAAAAAAAAAAAA0017 /* Info.plist */,
+				AAAAAAAAAAAAAAAAAAAA0018 /* Assets.xcassets */,
+				AAAAAAAAAAAAAAAAAAAA001B /* FinderFlow.entitlements */,
+				BBBBBBBBBBBBBBBBBBBB0001 /* FileItem.swift */,
+				BBBBBBBBBBBBBBBBBBBB0003 /* ListView.swift */,
+				BBBBBBBBBBBBBBBBBBBB0005 /* IconsView.swift */,
+				BBBBBBBBBBBBBBBBBBBB0007 /* ColumnsView.swift */,
+				BBBBBBBBBBBBBBBBBBBB0009 /* StatusBarView.swift */,
+				EEEEEEEEEEEEEEEEEEEE0001 /* FileDragSupport.swift */,
+				CCCCCCCCCCCCCCCCCCCC0001 /* MarkdownReaderView.swift */,
+				CCCCCCCCCCCCCCCCCCCC0003 /* SettingsView.swift */,
+				CCCCCCCCCCCCCCCCCCCC0005 /* CodeEditorView.swift */,
+				FFFFFFFFFFFFFFFF0001 /* UserPreferences.swift */,
+				FFFFFFFFFFFFFFFF0003 /* UpdateManager.swift */,
+				FFFFFFFFFFFFFFFF0005 /* ErrorReportSheet.swift */,
+				FFFFFFFFFFFFFFFF0007 /* MarkdownFormatActions.swift */,
+				FFFFFFFFFFFFFFFF0009 /* MarkdownEditorController.swift */,
+				FFFFFFFFFFFFFFFF000B /* FirstRunSheet.swift */,
+				1111111111110001 /* FuzzySearch.swift */,
+				1111111111110003 /* DirectoryCache.swift */,
+				1111111111110005 /* ArchiveService.swift */,
+				1111111111110007 /* PreviewHelpers.swift */,
+				1111111111110009 /* NavigationUI.swift */,
+				111111111111000B /* DualPaneView.swift */,
+				111111111111000D /* BatchRenameSheet.swift */,
+				111111111111000F /* FileContextMenu.swift */,
+				1111111111110011 /* OpenWithService.swift */,
+				1111111111110013 /* SelectionActionBar.swift */,
+				1111111111110015 /* FolderSizeService.swift */,
+				2222222222220001 /* AIService.swift */,
+				2222222222220003 /* AIOrganizerEngine.swift */,
+				2222222222220005 /* AIOrganizerSheet.swift */,
+				2222222222220007 /* DiscordShareService.swift */,
+				3333333333330001 /* GoogleDriveAccount.swift */,
+				3333333333330003 /* GoogleDriveAPI.swift */,
+				3333333333330005 /* GoogleDriveOAuth.swift */,
+				3333333333330007 /* GoogleDriveSyncService.swift */,
+				3333333333330009 /* GoogleDriveUI.swift */,
+				333333333333000B /* GoogleDriveBadge.swift */,
+				2222222222220009 /* FileDropSupport.swift */,
+				2222222222220011 /* SendToDiscordSheet.swift */,
+				5555555555550001 /* SignaturePad.swift */,
+				5555555555550003 /* ESignEngine.swift */,
+				5555555555550005 /* ESignWindow.swift */,
+				5555555555550007 /* SignatureCreatorSheet.swift */,
+				6666666666660001 /* MailModels.swift */,
+				6666666666660003 /* MailStore.swift */,
+				6666666666660005 /* MailEmlParser.swift */,
+				6666666666660007 /* MailClassifier.swift */,
+				6666666666660009 /* MailRulesEngine.swift */,
+				666666666666000B /* MailFilingService.swift */,
+				666666666666000D /* MailInboxView.swift */,
+				666666666666000F /* MailInboxWindow.swift */,
+				7777777777770001 /* MailSources.swift */,
+				7777777777770003 /* FinderReveal.swift */,
+				6666666666660011 /* ShortcutsReference.swift */,
+				8888888888880001 /* MailAttachService.swift */,
+				8888888888880003 /* MailAttachPicker.swift */,
+				4444444444440001 /* PDFInspector.swift */,
+				DDDDDDDDDDDDDDDDDDDD0001 /* AceEditor */,
+			);
+			path = FinderFlow;
+			sourceTree = "<group>";
+		};
+		AAAAAAAAAAAAAAAAAAAA006F /* FinderFlowExtension */ = {
+			isa = PBXGroup;
+			children = (
+				AAAAAAAAAAAAAAAAAAAA0040 /* FinderSyncExtension.swift */,
+				AAAAAAAAAAAAAAAAAAAA0041 /* Info.plist */,
+				AAAAAAAAAAAAAAAAAAAA001C /* FinderFlowExtension.entitlements */,
+			);
+			path = FinderFlowExtension;
+			sourceTree = "<group>";
+		};
+		AAAAAAAAAAAAAAAAAAAA0072 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				AAAAAAAAAAAAAAAAAAAA0070 /* FinderSync.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AAAAAAAAAAAAAAAAAAAA0002 /* FinderFlow */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AAAAAAAAAAAAAAAAAAAA0006 /* Build configuration list for PBXNativeTarget "FinderFlow" */;
+			buildPhases = (
+				AAAAAAAAAAAAAAAAAAAA0009 /* Sources */,
+				777777777777777777770020 /* Build Share Agent */,
+				AAAAAAAAAAAAAAAAAAAA000A /* Resources */,
+				AAAAAAAAAAAAAAAAAAAA000B /* Frameworks */,
+				AAAAAAAAAAAAAAAAAAAA0037 /* Embed App Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				AAAAAAAAAAAAAAAAAAAA0061 /* PBXTargetDependency */,
+			);
+			name = FinderFlow;
+			productName = FinderFlow;
+			productReference = AAAAAAAAAAAAAAAAAAAA000F /* FinderFlow.app */;
+			productType = "com.apple.product-type.application";
+		};
+		AAAAAAAAAAAAAAAAAAAA0030 /* FinderFlowExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AAAAAAAAAAAAAAAAAAAA0031 /* Build configuration list for PBXNativeTarget "FinderFlowExtension" */;
+			buildPhases = (
+				AAAAAAAAAAAAAAAAAAAA0034 /* Sources */,
+				AAAAAAAAAAAAAAAAAAAA0035 /* Resources */,
+				AAAAAAAAAAAAAAAAAAAA0036 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = FinderFlowExtension;
+			productName = FinderFlowExtension;
+			productReference = AAAAAAAAAAAAAAAAAAAA0042 /* FinderFlowExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AAAAAAAAAAAAAAAAAAAA0001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1620;
+				LastUpgradeCheck = 1620;
+				TargetAttributes = {
+					AAAAAAAAAAAAAAAAAAAA0002 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+					AAAAAAAAAAAAAAAAAAAA0030 = {
+						CreatedOnToolsVersion = 16.2;
+					};
+				};
+			};
+			buildConfigurationList = AAAAAAAAAAAAAAAAAAAA0003 /* Build configuration list for PBXProject "FinderFlow" */;
+			compatibilityVersion = "Xcode 15.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AAAAAAAAAAAAAAAAAAAA000C;
+			productRefGroup = AAAAAAAAAAAAAAAAAAAA000D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AAAAAAAAAAAAAAAAAAAA0002 /* FinderFlow */,
+				AAAAAAAAAAAAAAAAAAAA0030 /* FinderFlowExtension */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AAAAAAAAAAAAAAAAAAAA000A /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAAAAAAAAAAAAAAAAAAA0027 /* Assets.xcassets in Resources */,
+				DDDDDDDDDDDDDDDDDDDD0002 /* AceEditor in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAAAAAAAAAAAAAAAAAAA0035 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+        777777777777777777770020 /* Build Share Agent */ = {
+            isa = PBXShellScriptBuildPhase;
+            buildActionMask = 2147483647;
+            files = ();
+            alwaysOutOfDate = 1;
+            inputPaths = ("$(SRCROOT)/FinderFlow/QuickShareServer.swift", "$(SRCROOT)/FinderFlow/QuickShareRuntime.swift", "$(SRCROOT)/tools/cloudflare/bundle.py", "$(SRCROOT)/tools/cloudflare/manifest.json", "$(SRCROOT)/share-server/public/index.html", "$(SRCROOT)/share-server/public/app.js", "$(SRCROOT)/share-server/public/style.css", "$(SRCROOT)/FinderFlow/SecureShareCore.swift", "$(SRCROOT)/FinderFlow/SecureShareRelay.swift", "$(SRCROOT)/FinderFlowShareAgent/main.swift", "$(SRCROOT)/FinderFlowShareAgent/com.finderflow.share-agent.plist", "$(SRCROOT)/tools/share-test/build-agent.sh");
+            outputPaths = ("$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/MacOS/FinderFlowShareAgent", "$(TARGET_BUILD_DIR)/$(CONTENTS_FOLDER_PATH)/Library/LaunchAgents/com.finderflow.share-agent.plist");
+            name = "Build Share Agent";
+            runOnlyForDeploymentPostprocessing = 0;
+            shellPath = /bin/bash;
+            shellScript = "cd \"$SRCROOT\"\n./tools/share-test/build-agent.sh \"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH\"";
+        };
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AAAAAAAAAAAAAAAAAAAA0009 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAAAAAAAAAAAAAAAAAAA0020 /* FinderFlowApp.swift in Sources */,
+				777777777777777777770008 /* QuickShareServer.swift in Sources */,
+				777777777777777777770010 /* QuickShareRuntime.swift in Sources */,
+				777777777777777777770006 /* SecureShareUI.swift in Sources */,
+				777777777777777777770004 /* SecureShareRelay.swift in Sources */,
+				777777777777777777770002 /* SecureShareCore.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0021 /* ContentView.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0022 /* PathBarView.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0023 /* SearchScopeView.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0024 /* QuickActionsToolbar.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0025 /* FolderCreationService.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0026 /* SearchEngine.swift in Sources */,
+				AAAAAAAAAAAAAAAAAAAA0028 /* SidebarView.swift in Sources */,
+				BBBBBBBBBBBBBBBBBBBB0002 /* FileItem.swift in Sources */,
+				BBBBBBBBBBBBBBBBBBBB0004 /* ListView.swift in Sources */,
+				BBBBBBBBBBBBBBBBBBBB0006 /* IconsView.swift in Sources */,
+				BBBBBBBBBBBBBBBBBBBB0008 /* ColumnsView.swift in Sources */,
+				BBBBBBBBBBBBBBBBBBBB000A /* StatusBarView.swift in Sources */,
+				EEEEEEEEEEEEEEEEEEEE0002 /* FileDragSupport.swift in Sources */,
+				CCCCCCCCCCCCCCCCCCCC0002 /* MarkdownReaderView.swift in Sources */,
+				CCCCCCCCCCCCCCCCCCCC0004 /* SettingsView.swift in Sources */,
+				CCCCCCCCCCCCCCCCCCCC0006 /* CodeEditorView.swift in Sources */,
+				FFFFFFFFFFFFFFFF0002 /* UserPreferences.swift in Sources */,
+				FFFFFFFFFFFFFFFF0004 /* UpdateManager.swift in Sources */,
+				FFFFFFFFFFFFFFFF0006 /* ErrorReportSheet.swift in Sources */,
+				FFFFFFFFFFFFFFFF0008 /* MarkdownFormatActions.swift in Sources */,
+				FFFFFFFFFFFFFFFF000A /* MarkdownEditorController.swift in Sources */,
+				FFFFFFFFFFFFFFFF000C /* FirstRunSheet.swift in Sources */,
+				1111111111110002 /* FuzzySearch.swift in Sources */,
+				1111111111110004 /* DirectoryCache.swift in Sources */,
+				1111111111110006 /* ArchiveService.swift in Sources */,
+				1111111111110008 /* PreviewHelpers.swift in Sources */,
+				111111111111000A /* NavigationUI.swift in Sources */,
+				111111111111000C /* DualPaneView.swift in Sources */,
+				111111111111000E /* BatchRenameSheet.swift in Sources */,
+				1111111111110010 /* FileContextMenu.swift in Sources */,
+				1111111111110012 /* OpenWithService.swift in Sources */,
+				1111111111110014 /* SelectionActionBar.swift in Sources */,
+				1111111111110016 /* FolderSizeService.swift in Sources */,
+				2222222222220002 /* AIService.swift in Sources */,
+				2222222222220004 /* AIOrganizerEngine.swift in Sources */,
+				2222222222220006 /* AIOrganizerSheet.swift in Sources */,
+				2222222222220008 /* DiscordShareService.swift in Sources */,
+				3333333333330002 /* GoogleDriveAccount.swift in Sources */,
+				3333333333330004 /* GoogleDriveAPI.swift in Sources */,
+				3333333333330006 /* GoogleDriveOAuth.swift in Sources */,
+				3333333333330008 /* GoogleDriveSyncService.swift in Sources */,
+				333333333333000A /* GoogleDriveUI.swift in Sources */,
+				333333333333000C /* GoogleDriveBadge.swift in Sources */,
+				2222222222220010 /* FileDropSupport.swift in Sources */,
+				2222222222220012 /* SendToDiscordSheet.swift in Sources */,
+				5555555555550002 /* SignaturePad.swift in Sources */,
+				5555555555550004 /* ESignEngine.swift in Sources */,
+				5555555555550006 /* ESignWindow.swift in Sources */,
+				5555555555550008 /* SignatureCreatorSheet.swift in Sources */,
+				6666666666660002 /* MailModels.swift in Sources */,
+				6666666666660004 /* MailStore.swift in Sources */,
+				6666666666660006 /* MailEmlParser.swift in Sources */,
+				6666666666660008 /* MailClassifier.swift in Sources */,
+				666666666666000A /* MailRulesEngine.swift in Sources */,
+				666666666666000C /* MailFilingService.swift in Sources */,
+				666666666666000E /* MailInboxView.swift in Sources */,
+				6666666666660010 /* MailInboxWindow.swift in Sources */,
+				7777777777770002 /* MailSources.swift in Sources */,
+				7777777777770004 /* FinderReveal.swift in Sources */,
+				6666666666660012 /* ShortcutsReference.swift in Sources */,
+				8888888888880002 /* MailAttachService.swift in Sources */,
+				8888888888880004 /* MailAttachPicker.swift in Sources */,
+				4444444444440002 /* PDFInspector.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AAAAAAAAAAAAAAAAAAAA0034 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AAAAAAAAAAAAAAAAAAAA0050 /* FinderSyncExtension.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AAAAAAAAAAAAAAAAAAAA0061 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = AAAAAAAAAAAAAAAAAAAA0030 /* FinderFlowExtension */;
+			targetProxy = AAAAAAAAAAAAAAAAAAAA0060 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AAAAAAAAAAAAAAAAAAAA0004 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_CYCLE = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AAAAAAAAAAAAAAAAAAAA0005 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_CYCLE = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		AAAAAAAAAAAAAAAAAAAA0007 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FinderFlow/FinderFlow.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 8;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FinderFlow/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.5.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.finderflow.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AAAAAAAAAAAAAAAAAAAA0008 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FinderFlow/FinderFlow.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 8;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FinderFlow/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.5.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.finderflow.app;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		AAAAAAAAAAAAAAAAAAAA0032 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FinderFlowExtension/FinderFlowExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 8;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FinderFlowExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.5.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.finderflow.app.extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		AAAAAAAAAAAAAAAAAAAA0033 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = FinderFlowExtension/FinderFlowExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 8;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = FinderFlowExtension/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MARKETING_VERSION = 1.5.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.finderflow.app.extension;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AAAAAAAAAAAAAAAAAAAA0003 /* Build configuration list for PBXProject "FinderFlow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAAAAAAAAAAAAAAAAAAA0004 /* Debug */,
+				AAAAAAAAAAAAAAAAAAAA0005 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AAAAAAAAAAAAAAAAAAAA0006 /* Build configuration list for PBXNativeTarget "FinderFlow" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAAAAAAAAAAAAAAAAAAA0007 /* Debug */,
+				AAAAAAAAAAAAAAAAAAAA0008 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AAAAAAAAAAAAAAAAAAAA0031 /* Build configuration list for PBXNativeTarget "FinderFlowExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AAAAAAAAAAAAAAAAAAAA0032 /* Debug */,
+				AAAAAAAAAAAAAAAAAAAA0033 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = AAAAAAAAAAAAAAAAAAAA0001 /* Project object */;
+}
