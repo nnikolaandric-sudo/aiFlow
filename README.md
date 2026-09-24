@@ -14,13 +14,13 @@ one-click "open in Terminal / VS Code / Cursor / Claude Code / Codex" — in one
 self-contained app that runs entirely on your Mac.
 
 ![Platform](https://img.shields.io/badge/macOS-14%2B-2D52E0)
-![Universal](https://img.shields.io/badge/Universal-Apple%20Silicon%20%2B%20Intel-444)
+![Apple Silicon](https://img.shields.io/badge/Mac-Apple%20Silicon-444)
 [![License](https://img.shields.io/badge/License-MIT-444)](LICENSE)
 
 **[⬇ Download the latest release](../../releases/latest)** ·
 **[⭐ Star](../../stargazers)**
 
-`macOS 14+` · `Apple Silicon + Intel (universal)` · `≈ 6.8 MB` · `Free & open source (MIT)`
+`macOS 14+` · `Apple Silicon` · `≈ 27 MB` · `Free & open source (MIT)`
 
 </div>
 
@@ -339,8 +339,8 @@ eating your RAM:
 
 | **macOS**    | 14.0 Sonoma or later                       |
 | ------------ | ------------------------------------------ |
-| **Chip**     | Apple Silicon or Intel (universal binary)  |
-| **Download** | ≈ 6.8 MB · `.dmg`                          |
+| **Chip**     | Apple Silicon (M1 or newer); Intel needs an Xcode build |
+| **Download** | ≈ 27 MB · `.dmg` (includes the Cloudflare helper for Secure Share) |
 | **Extras**   | None — fully self-contained                |
 | **Price**    | Free & open source (MIT)                   |
 
@@ -361,7 +361,7 @@ eating your RAM:
      xattr -dr com.apple.quarantine /Applications/aiFlow.app
      ```
 4. *(Optional)* Enable the Finder right-click menu under **System Settings →
-   General → Login Items & Extensions → Extensions → aiFlow**.
+   General → Login Items & Extensions → Extensions → aiFlow** (Xcode builds only).
 
 The first time you browse Desktop/Documents/Downloads (or use Get Info / Open in
 Terminal), macOS shows its **standard permission prompts** — just click **Allow**.
@@ -372,15 +372,17 @@ These are normal for any file manager.
 Requires Xcode 16 / Swift 5.9+.
 
 ```sh
-git clone <this-repo-url>
+git clone https://github.com/nnikolaandric-sudo/aiFlow.git
 cd aiFlow
-open *.xcodeproj      # build & run (⌘R)
+open aiFlow.xcodeproj          # build & run with Xcode (⌘R)
+./build-local.sh               # or without Xcode: Command Line Tools only
 ```
 
-Produce a distributable Universal DMG:
+Produce a distributable DMG (+ `.sha256` — upload both, the updater needs it):
 
 ```sh
-./release.sh                    # → build/aiFlow-<version>.dmg
+./release.sh                                    # Xcode: Universal + Finder extension
+./release.sh --prebuilt build/local/aiFlow.app  # no Xcode: Apple Silicon only
 ```
 
 > Full capability list & development history: **[CHANGELOG.md](CHANGELOG.md)**.

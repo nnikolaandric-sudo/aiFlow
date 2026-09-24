@@ -67,7 +67,7 @@
 			<key>NSMessage</key>
 			<string>signDocument</string>
 			<key>NSPortName</key>
-			<string>FinderFlow</string>
+			<string>aiFlow</string>
 			<key>NSRequiredContext</key>
 			<dict>
 				<key>NSApplicationIdentifier</key>
@@ -93,7 +93,7 @@
 			<key>NSMessage</key>
 			<string>verifySignature</string>
 			<key>NSPortName</key>
-			<string>FinderFlow</string>
+			<string>aiFlow</string>
 			<key>NSRequiredContext</key>
 			<dict>
 				<key>NSApplicationIdentifier</key>

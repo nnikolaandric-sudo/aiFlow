@@ -39,13 +39,18 @@ Pravila:
 - Vidljivo ime je **aiFlow** (wordmark: „ai" u gradijentu ikone + „Flow").
   Source folderi su preimenovani: `aiFlow/` (app kod), `aiFlowExtension/`,
   `aiFlowShareAgent/`, projekat `aiFlow.xcodeproj`, Mail skripta `aiFlowSave`.
+  Xcode proizvod je `aiFlow.app` (izvršni fajl `aiFlow`), release daje
+  `aiFlow-<verzija>.dmg` + `.sha256`.
   Interno ostaje staro ime: bundle ID `com.finderflow.app` (+ `.extension`),
-  Swift modul `FinderFlow`, Xcode targeti/produkti (`FinderFlow.app`,
-  `FinderFlowExtension.appex`), folderi u Application Support, Keychain
-  ključevi, URL scheme `finderflow://`, launchd label
-  `com.finderflow.share-agent` i release fajlovi (`release.sh` daje
-  `FinderFlow-<verzija>.dmg`) — ne mijenjaj ih (podešavanja, ključevi
-  i dozvole bi se izgubili).
+  Swift modul `FinderFlow` (`PRODUCT_MODULE_NAME`, `-module-name`), Xcode
+  target/scheme `FinderFlow`, `FinderFlowExtension.appex`, folderi u
+  Application Support, Keychain ključevi, URL scheme `finderflow://`,
+  launchd label `com.finderflow.share-agent` — ne mijenjaj ih (podešavanja,
+  ključevi i dozvole bi se izgubili).
+- Repo i izdanja: **github.com/nnikolaandric-sudo/aiFlow**. Updater
+  (`aiFlow/UpdateManager.swift`) čita samo njegova izdanja; svako izdanje
+  mora imati DMG **i** `<dmg>.sha256`, inače updater odbija. Instalacijska
+  skripta u UpdateManageru je bash — samo `#` komentari (`//` ruši update).
 - Lokalni build daje `build/local/aiFlow.app` (izvršni fajl `aiFlow`);
   instalirano je `/Applications/aiFlow.app` — nikad ne vraćaj `FinderFlow.app` pored nje.
 - Ikona: `swift tools/brand/make_icon.swift <dir>` (16 px ima pojednostavljen crtež).
@@ -55,6 +60,14 @@ Pravila:
 - App bez Xcode-a: `./build-local.sh --no-run` (samo Command Line Tools).
   U rsync kopiji bez `build/` kopiraj i `build/cloudflared/` — inače build
   skida cloudflared s mreže i pada bez interneta.
+- Novi `.swift` fajl upiši i u `aiFlow.xcodeproj/project.pbxproj`
+  (PBXBuildFile + PBXFileReference + grupa + Sources faza app targeta).
+  `build-local.sh` kompajlira `aiFlow/*.swift` pa propust ne vidi, ali
+  `release.sh` (xcodebuild) pada — 2026-09-24 je nedostajalo 18 fajlova.
+  Provjera: svaki `aiFlow/*.swift` mora imati `path = <ime>;` u pbxproj.
+- Release bez Xcode-a: `./build-local.sh Release --no-run` pa
+  `./release.sh --prebuilt build/local/aiFlow.app` (Apple Silicon, bez
+  Finder ekstenzije); s Xcode-om samo `./release.sh` (Universal).
 - CLI provera: `./tools/pdf-inspect/run.sh --build-only`.
 - Gdrive harness: `./tools/gdrive-test/run.sh`.
 

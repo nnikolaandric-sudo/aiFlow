@@ -5,7 +5,32 @@ relative to the 1.0 release.
 
 ---
 
-## Unreleased — Workspace Mode: files know what needs to happen next
+## 2.0.0 — aiFlow (2026-09-24)
+
+First release of aiFlow as its own app, published from
+[nnikolaandric-sudo/aiFlow](https://github.com/nnikolaandric-sudo/aiFlow).
+It continues from FinderFlow 1.5.2 (MIT — see LICENSE). Settings, AI keys, the
+E-Sign seal key and macOS permissions carry over (bundle ID unchanged).
+
+### Release fixes
+
+- **In-app updates install again.** The installer script carried a `//`
+  comment line; bash ran it as a command ("//: is a directory") and `set -e`
+  aborted every update right after the app quit. Checked end to end on a test
+  image: old version replaced, image detached, wrong hash refused.
+- **The updater reads aiFlow's own releases** (`nnikolaandric-sudo/aiFlow`),
+  never FinderFlow's, whose builds are a different app.
+- **Xcode project was missing 18 source files** (Folder Rules, Workspace,
+  Git, native list, Settings panes…) — `release.sh` could not have built.
+- **`release.sh` ships aiFlow:** `aiFlow-<version>.dmg` + `.sha256`, aiFlow.app
+  inside, rebranded install notes and Gatekeeper helper; `--prebuilt` packages
+  a `build-local.sh` build without Xcode (Apple Silicon only, no Finder
+  extension), `--no-layout` skips the Finder window styling; the bundle ID and
+  signature are checked before packaging.
+- Version 2.0.0 (build 9) in the Xcode project and `build-local.sh`; Xcode
+  product renamed to aiFlow with `PRODUCT_MODULE_NAME = FinderFlow`.
+
+### Workspace Mode: files know what needs to happen next
 
 - **Enable Workspace on any folder** (preview panel, right-click, or the
   `...` menu). The left side stays a plain file browser; the right panel
@@ -43,7 +68,7 @@ relative to the 1.0 release.
 - Tests/harness: `FF_WORKSPACE_DIR` isolates the store,
   `FF_WORKSPACE_DISABLE_NOTIF=1` keeps notification prompts out of tests.
 
-## Unreleased — Default file manager works on macOS 26
+### Default file manager works on macOS 26
 
 - **The "Open folders in aiFlow" toggle never took effect on macOS 26:**
   every public API that sets the folder handler answers paramErr (-50) —
@@ -65,7 +90,7 @@ relative to the 1.0 release.
   (`build-local.sh --no-run`, and when enabling from /Applications) so a
   stale copy can't take folders over.
 
-## Unreleased — Rebrand: aiFlow
+### Rebrand: aiFlow
 
 - **The app is called aiFlow** — menu bar, Dock, Finder, Spotlight, Activity
   Monitor, window titles, Settings, dialogs, Finder Services ("Sign with
@@ -80,7 +105,7 @@ relative to the 1.0 release.
 - Local builds: `build/local/aiFlow.app`, executable `aiFlow`
   (`-module-name FinderFlow` pinned so archived class names don't move).
 
-## Unreleased — Calmer window: search in the title bar, simpler toolbar
+### Calmer window: search in the title bar, simpler toolbar
 
 - **Search sits top right in the title bar** (Finder layout), one field:
   the scope is a small menu inside it (magnifier + chevron, accent-colored
@@ -104,7 +129,7 @@ relative to the 1.0 release.
 - **Preview panel never takes more than half the window** — a width dragged
   on a big screen squeezed the list to a third on a smaller one.
 
-## Unreleased — Native file list: folder switches ~2× faster
+### Native file list: folder switches ~2× faster
 
 - **The plain list view is a real NSTableView now** (`NativeFileTable.swift`).
   SwiftUI's `Table` diffed and visited every row and measured row heights
@@ -119,7 +144,7 @@ relative to the 1.0 release.
   Look, the full context menu, drag-out, drop onto folders (spring-open) or
   the list, cut fade, tag dots, Drive badges; column widths are remembered.
 
-## Unreleased — Mail Inbox AI + mail sources, Folder Rules read documents
+### Mail Inbox AI + mail sources, Folder Rules read documents
 
 - **Mail Inbox ▸ Improve with AI / Organize.** The AI upgrade, batch
   enrichment and reorganization that were written but unwired now have
@@ -151,7 +176,7 @@ relative to the 1.0 release.
 - Tests/harness: `FF_MAIL_DIR` keeps the Mail store out of Application
   Support.
 
-## Unreleased — Keyboard shortcuts reference
+### Keyboard shortcuts reference
 
 - **Help ▸ Keyboard Shortcuts (⇧⌘/).** Every shortcut in one window —
   files & editing, navigation, preview, tabs, view modes, dialogs, the code
@@ -161,7 +186,7 @@ relative to the 1.0 release.
   a button that opens the window. One shared model feeds both, so they can't
   drift apart.
 
-## Unreleased — Secure internet sharing
+### Secure internet sharing
 
 - Automatic account-free Cloudflare Quick Tunnels are now the default: bundled,
   checksum-verified cloudflared, native loopback recipient API, local access
@@ -183,7 +208,7 @@ relative to the 1.0 release.
   hosting, signed helper approval and independent-network verification remain
   deployment steps. See [secure-sharing.md](docs/secure-sharing.md).
 
-## Unreleased — Mail Inbox (file email attachments like Hazel files folders)
+### Mail Inbox (file email attachments like Hazel files folders)
 
 - **File ▸ Mail Inbox… (⌥⌘M).** The Mail DMS pipeline that already lived in
   the codebase is now reachable: a reusable inbox window with Sync, Import
@@ -204,7 +229,7 @@ relative to the 1.0 release.
   reorganization services exist but stay unwired until a follow-up adds their
   buttons to the detail pane.
 
-## Unreleased — Sidebar switching responds at once
+### Sidebar switching responds at once
 
 - **The sidebar highlight moves when you click.** Clicking Downloads,
   Desktop or Documents changed the highlight and the folder in one update, so
@@ -228,7 +253,7 @@ relative to the 1.0 release.
   — checked and not worth hacking around: a fresh Table per folder was ~100 ms
   slower, fixed row heights saved 0–35 ms.
 
-## Unreleased — Folder Rules (auto-sorting, like Hazel)
+### Folder Rules (auto-sorting, like Hazel)
 
 - **Right-click a folder ▸ Auto-Sort This Folder** (or right-click the empty
   area inside it) and write rules the way you'd say them: "screenshotove
@@ -261,7 +286,7 @@ relative to the 1.0 release.
   remembered so the same file is never paid for twice. The status bar shows
   "Auto-sort · N today" in a watched folder.
 
-## Unreleased — Browser tabs + floating selection bar
+### Browser tabs + floating selection bar
 
 - **Browser tabs (Tab menu, ⌘T / ⇧⌘W / ^Tab).** One window, multiple folders:
   a tab bar above the path row, each tab with its own path, persisted across
@@ -324,7 +349,7 @@ relative to the 1.0 release.
 
 ---
 
-## Unreleased — Interface cleanup
+### Interface cleanup
 
 - **The preview panel showed an empty bubble.** Its "nothing selected" icon was
   `doc.magnifyingglass`, which isn't an SF Symbol, so macOS drew nothing inside
@@ -373,7 +398,7 @@ relative to the 1.0 release.
 
 ---
 
-## Unreleased — E-Sign (sign PDFs and scans)
+### E-Sign (sign PDFs and scans)
 
 - **Sign…** in the right-click menu for PDFs and images, **File ▸ Sign
   Document…** (⌥⌘E) and Finder ▸ Services ▸ **Sign with FinderFlow** open a
@@ -409,7 +434,7 @@ relative to the 1.0 release.
 
 ---
 
-## Unreleased — PDFInspector (local PDF reading for AI agents)
+### PDFInspector (local PDF reading for AI agents)
 
 - **PDFInspector** — local PDF classification + text extraction + Markdown
   (`FinderFlow/PDFInspector.swift`), inspired by `firecrawl/pdf-inspector`
@@ -428,7 +453,7 @@ relative to the 1.0 release.
 
 ---
 
-## Unreleased — Native Google Drive
+### Native Google Drive
 
 - **Google Drive without the Drive app** — connect one or more Google accounts
   (OAuth 2.0 loopback + PKCE with your own client ID; refresh tokens live in the
@@ -463,7 +488,7 @@ relative to the 1.0 release.
 
 ---
 
-## Unreleased — Fallback OpenRouter keys
+### Fallback OpenRouter keys
 
 - **Fallback API keys** — Settings → AI Organizer now holds Key 1 (primary)
   plus any number of fallback keys. When a key is rate-limited (429), out of

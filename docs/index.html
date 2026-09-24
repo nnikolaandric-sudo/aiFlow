@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>aiFlow — the Mac file manager Finder should have shipped</title>
-  <meta name="description" content="A fast, native macOS file manager with a built-in code editor, Markdown reader/editor, Finder-compatible color tags, Spotlight search, archive tools, and one-click open in Terminal / VS Code / Cursor. Universal, ~6.8 MB, free & open source." />
+  <meta name="description" content="A fast, native macOS file manager with a built-in code editor, Markdown reader/editor, Finder-compatible color tags, Spotlight search, archive tools, and one-click open in Terminal / VS Code / Cursor. Apple Silicon, ~27 MB, free & open source." />
   <link rel="icon" type="image/png" href="assets/icon.png" />
 
   <meta property="og:type" content="website" />
   <meta property="og:title" content="aiFlow — a Mac Finder that does more" />
-  <meta property="og:description" content="Built-in code editor, Markdown reader/editor, real color tags, Spotlight search, archives, and one-click IDE launch. Universal · free · open source." />
+  <meta property="og:description" content="Built-in code editor, Markdown reader/editor, real color tags, Spotlight search, archives, and one-click IDE launch. Apple Silicon · free · open source." />
   <meta property="og:image" content="assets/shot-list.png" />
-  <meta property="og:url" content="https://gtarafdar.github.io/FinderFlow/" />
+  <meta property="og:url" content="https://nnikolaandric-sudo.github.io/aiFlow/" />
   <meta name="twitter:card" content="summary_large_image" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -65,9 +65,8 @@
         <a href="#features">Features</a>
         <a href="#security">Security</a>
         <a href="#install">Install</a>
-        <a href="#maker">Maker</a>
       </nav>
-      <a class="btn btn--primary nav__cta" href="https://github.com/Gtarafdar/FinderFlow/releases/latest"><svg class="icon"><use href="#i-download"/></svg> Download</a>
+      <a class="btn btn--primary nav__cta" href="https://github.com/nnikolaandric-sudo/aiFlow/releases/latest"><svg class="icon"><use href="#i-download"/></svg> Download</a>
     </div>
   </header>
 
@@ -85,7 +84,7 @@
             launch — the whole stack you usually open four apps for, in one window.
           </p>
           <div class="hero__cta">
-            <a class="btn btn--primary" href="https://github.com/Gtarafdar/FinderFlow/releases/latest">
+            <a class="btn btn--primary" href="https://github.com/nnikolaandric-sudo/aiFlow/releases/latest">
               <svg class="icon"><use href="#i-download"/></svg> Download for macOS
             </a>
             <a class="btn btn--ghost btn--scroll" href="#showcase">
@@ -94,7 +93,7 @@
           </div>
           <p class="hero__facts">
             <span class="dot" aria-hidden="true"></span>
-            <b>Universal</b> · Apple Silicon + Intel · <b>macOS 14+</b> · <b>6.8 MB</b> .dmg · <b>Free</b> &amp; open source · MIT
+            <b>Apple Silicon</b> · <b>macOS 14+</b> · <b>27 MB</b> .dmg · <b>Free</b> &amp; open source · MIT
           </p>
         </div>
         <figure class="figure hero__fig">
@@ -363,120 +362,30 @@
           <table class="reqtable">
             <tbody>
               <tr><th>macOS</th><td>14.0 Sonoma or later</td></tr>
-              <tr><th>Chip</th><td>Apple Silicon or Intel (universal)</td></tr>
-              <tr><th>Download</th><td>≈ 6.8 MB · .dmg</td></tr>
+              <tr><th>Chip</th><td>Apple Silicon (M1 or newer)</td></tr>
+              <tr><th>Download</th><td>≈ 27 MB · .dmg</td></tr>
               <tr><th>Extras</th><td>None — fully self-contained</td></tr>
               <tr><th>Price</th><td>Free &amp; open source (MIT)</td></tr>
             </tbody>
           </table>
           <div>
             <div class="terminal" aria-label="Install steps">
-<span class="c"># 1. Download &amp; open FinderFlow-1.5.2.dmg, drag it into Applications</span>
+<span class="c"># 1. Download &amp; open aiFlow-2.0.0.dmg, drag it into Applications</span>
 <span class="c"># 2. First launch: it's free (not paid-Apple-signed), so macOS asks once —</span>
 <span class="c">#    System Settings → Privacy &amp; Security → "Open Anyway" (safe / expected)</span>
 <span class="c">#    or double-click Fix Gatekeeper.command in the DMG</span>
 <span class="c"># 3. …or clear the quarantine flag in one line:</span>
-<span class="n">$</span> xattr -dr com.apple.quarantine /Applications/FinderFlow.app
+<span class="n">$</span> xattr -dr com.apple.quarantine /Applications/aiFlow.app
 <span class="c"># 4. (optional) enable the Finder right-click menu under</span>
-<span class="c">#    Login Items &amp; Extensions → Extensions → FinderFlow</span>
+<span class="c">#    Login Items &amp; Extensions → Extensions → aiFlow</span>
             </div>
             <p style="color:var(--color-muted);font-size:var(--text-sm);margin-top:var(--space-12)">
               On first browse, macOS shows standard “allow access” prompts — normal for any file manager. Just click <strong>Allow</strong>.
             </p>
             <div class="hero__cta">
-              <a class="btn btn--primary" href="https://github.com/Gtarafdar/FinderFlow/releases/latest"><svg class="icon"><use href="#i-download"/></svg> Download aiFlow 1.5.2</a>
+              <a class="btn btn--primary" href="https://github.com/nnikolaandric-sudo/aiFlow/releases/latest"><svg class="icon"><use href="#i-download"/></svg> Download aiFlow 2.0.0</a>
             </div>
           </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- MAKER -->
-    <section class="section" id="maker">
-      <div class="wrap">
-        <div class="maker">
-          <img class="maker__photo" src="assets/maker.png" alt="Gobinda Tarafdar" width="132" height="132" />
-          <div>
-            <p class="eyebrow">About the maker</p>
-            <h2 style="font-size:var(--text-2xl);margin-top:var(--space-8)">Gobinda Tarafdar</h2>
-            <p style="margin-top:var(--space-12)">
-              WordPress product marketer by trade, stubborn problem-solver by habit,
-              lifelong Harry Potter devotee by heart. By day I'm the Product Marketing
-              Specialist at <strong>WPBakery</strong>. Before that I helped a single
-              plugin cross <strong>400,000+ active users</strong>. When the day-job owl
-              flies home, I tinker on my own little workshop of spells — FinderFlow is
-              one of them.
-            </p>
-            <div class="workshop">
-              <a class="work" href="https://wpbakery.com/"><b>WPBakery <svg class="icon"><use href="#i-ext"/></svg></b><span>The page builder I market.</span></a>
-              <a class="work" href="https://thedocscriber.com/"><b>Docscriber <svg class="icon"><use href="#i-ext"/></svg></b><span>Documentation, conjured.</span></a>
-              <a class="work" href="https://therecaller.com/"><b>TheRecaller <svg class="icon"><use href="#i-ext"/></svg></b><span>A memory charm for the web.</span></a>
-              <a class="work" href="https://theeditra.com/"><b>TheEditra <svg class="icon"><use href="#i-ext"/></svg></b><span>A video-editing cauldron.</span></a>
-              <a class="work" href="https://thequillpress.com/"><b>The Quill Press <svg class="icon"><use href="#i-ext"/></svg></b><span>Tech news, Daily-Prophet style.</span></a>
-              <a class="work" href="https://costlas.com/"><b>Costlas <svg class="icon"><use href="#i-ext"/></svg></b><span>Cost-of-living, 140 countries.</span></a>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- WHY I BUILT THIS -->
-    <section class="section" id="story">
-      <div class="wrap why">
-        <div>
-          <p class="eyebrow">Why I built this</p>
-          <p class="why__lead">Finder is fine — until the moment you need a little more, and have to go find another app.</p>
-        </div>
-        <div>
-          <p>
-            I live in my files. All day I'm jumping between folders, peeking into a
-            config, fixing one line in a script, reading a Markdown file an AI just
-            wrote me, then opening that folder in my editor or terminal. With Finder,
-            every one of those is a detour into another app.
-          </p>
-          <p>
-            So I built the file manager I actually wanted — one that <span class="pull">edits
-            the file, renders the Markdown, copies the path, and opens the IDE</span>
-            without ever leaving the window. It stays out of your way, runs entirely
-            on your Mac, and sips RAM instead of hogging it.
-          </p>
-          <p>
-            It's a premium-feeling app, but it's free and open source. If you've ever
-            wished Finder did just a bit more, it's yours too.
-          </p>
-        </div>
-      </div>
-    </section>
-
-    <!-- SUPPORT / STAR -->
-    <section class="section" id="support">
-      <div class="wrap">
-        <div class="section__head">
-          <p class="eyebrow">Support the project</p>
-          <h2>If it saves you a trip to Finder, give it a star</h2>
-          <p>FinderFlow is free and open source. A star helps others find it; a small donation keeps the workshop lit.</p>
-        </div>
-        <div class="support__grid">
-          <a class="support" href="https://github.com/Gtarafdar/FinderFlow">
-            <svg class="icon"><use href="#i-star"/></svg>
-            <b>Star on GitHub</b>
-            <span>Helps others discover it.</span>
-          </a>
-          <a class="support" href="https://gtarafdar.com/donate">
-            <svg class="icon"><use href="#i-heart"/></svg>
-            <b>Donate</b>
-            <span>Keeps the workshop lit.</span>
-          </a>
-          <a class="support" href="https://x.com/Gtarafdarr">
-            <svg class="icon icon--fill" style="fill:currentColor;stroke:none"><use href="#i-twitter"/></svg>
-            <b>Follow on X</b>
-            <span>New tools &amp; updates.</span>
-          </a>
-          <a class="support" href="https://www.linkedin.com/in/gobinda-tarafdar/">
-            <svg class="icon icon--fill" style="fill:currentColor;stroke:none"><use href="#i-linkedin"/></svg>
-            <b>Connect on LinkedIn</b>
-            <span>Say hello.</span>
-          </a>
         </div>
       </div>
     </section>
@@ -487,10 +396,10 @@
         <h2>Give Finder the upgrade it never got.</h2>
         <p>Install once. Browse, tag, search, edit, and launch your IDE — all in one window.</p>
         <div class="hero__cta">
-          <a class="btn btn--primary" href="https://github.com/Gtarafdar/FinderFlow/releases/latest"><svg class="icon"><use href="#i-download"/></svg> Download for macOS <small>· .dmg · 6.8 MB</small></a>
-          <a class="btn btn--ghost" href="https://github.com/Gtarafdar/FinderFlow"><svg class="icon"><use href="#i-github"/></svg> View source on GitHub</a>
+          <a class="btn btn--primary" href="https://github.com/nnikolaandric-sudo/aiFlow/releases/latest"><svg class="icon"><use href="#i-download"/></svg> Download for macOS <small>· .dmg · 27 MB</small></a>
+          <a class="btn btn--ghost" href="https://github.com/nnikolaandric-sudo/aiFlow"><svg class="icon"><use href="#i-github"/></svg> View source on GitHub</a>
         </div>
-        <p style="margin-top:var(--space-16)">Universal · macOS 14+ · ad-hoc signed · 6.8 MB</p>
+        <p style="margin-top:var(--space-16)">Apple Silicon · macOS 14+ · ad-hoc signed · 27 MB</p>
       </div>
     </section>
   </main>
@@ -499,16 +408,12 @@
   <footer class="foot">
     <div class="wrap">
       <div class="foot__row">
-        <span><span class="wordmark"><span class="wordmark__ai">ai</span>Flow</span> · runs fully on your Mac · built on FinderFlow, MIT © Gobinda Tarafdar</span>
+        <span><span class="wordmark"><span class="wordmark__ai">ai</span>Flow</span> · runs fully on your Mac · MIT License</span>
         <nav class="foot__links" aria-label="Footer">
           <a href="#showcase">Showcase</a>
           <a href="#features">Features</a>
           <a href="#security">Security</a>
-          <a href="#maker">Maker</a>
-          <a href="https://github.com/Gtarafdar/FinderFlow">GitHub</a>
-          <a href="https://gtarafdar.com/donate">Donate</a>
-          <a href="https://x.com/Gtarafdarr">X</a>
-          <a href="https://www.linkedin.com/in/gobinda-tarafdar/">LinkedIn</a>
+          <a href="https://github.com/nnikolaandric-sudo/aiFlow">GitHub</a>
         </nav>
       </div>
       <p class="foot__fine">
