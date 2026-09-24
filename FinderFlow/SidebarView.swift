@@ -196,7 +196,7 @@ struct SidebarView: View {
                                         }
                                     }
                                     Button("Show in Finder") {
-                                        NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: "")
+                                        FinderReveal.reveal([url])
                                     }
                                 }
                         }
@@ -235,7 +235,7 @@ struct SidebarView: View {
                                 .onTapGesture { go(url) }
                                 .contextMenu {
                                     Button("Show in Finder") {
-                                        NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: "")
+                                        FinderReveal.reveal([url])
                                     }
                                 }
                         }

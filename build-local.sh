@@ -193,6 +193,11 @@ codesign -dv "$APP" 2>&1 | sed -n 1,5p  # ne head: SIGPIPE + pipefail prekida bu
 echo "    Bundle size: $(du -sh "$APP" | cut -f1)"
 echo ""
 echo "==> Built: $(pwd)/$APP"
+# Same bundle ID as the installed app: a registered dev copy can win the
+# folder handler / "Show in Finder" lookup. Unregister it unless we launch it.
+if [ "$RUN_APP" -eq 0 ]; then
+    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$APP" 2>/dev/null || true
+fi
 
 if [ "$RUN_APP" -eq 1 ]; then
     echo "==> Launching aiFlow..."

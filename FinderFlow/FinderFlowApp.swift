@@ -161,6 +161,18 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 NotificationCenter.default.post(name: .navigateToPath, object: parent)
             } else if isDir.boolValue {
                 NSWorkspace.shared.open(url)
+            } else if DefaultFolderHandler.isFileViewer {
+                // We are the system file viewer: another app's "Show in
+                // Finder" arrives as a plain open of the file (same event as
+                // "Open With" — no reveal flag, checked on macOS 26). A file
+                // manager answers it by showing the file selected in its folder.
+                let parent = url.deletingLastPathComponent()
+                AppDelegate.pendingNavigationURL = parent
+                NotificationCenter.default.post(name: .ffRevealFile, object: url, userInfo: ["navigate": true])
+                // Cold launch: the window subscribes a moment later.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    NotificationCenter.default.post(name: .ffRevealFile, object: url, userInfo: ["navigate": true])
+                }
             } else if url.pathExtension.lowercased() == "md" {
                 // Markdown → rendered reader window (matches in-app double-click).
                 MarkdownWindowManager.shared.open(url)

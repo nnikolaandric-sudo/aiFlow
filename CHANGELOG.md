@@ -43,6 +43,28 @@ relative to the 1.0 release.
 - Tests/harness: `FF_WORKSPACE_DIR` isolates the store,
   `FF_WORKSPACE_DISABLE_NOTIF=1` keeps notification prompts out of tests.
 
+## Unreleased — Default file manager works on macOS 26
+
+- **The "Open folders in aiFlow" toggle never took effect on macOS 26:**
+  every public API that sets the folder handler answers paramErr (-50) —
+  `NSWorkspace.setDefaultApplication(at:toOpen: .folder)` and
+  `LSSetDefaultRoleHandlerForContentType`, even when asked to set Finder.
+  It now also writes the per-user LaunchServices entry for `public.folder`
+  plus `NSFileViewer` (the ForkLift / Path Finder route). "Show in Finder"
+  from other apps lands in aiFlow at once; folders opened by other apps
+  switch after the next login. Settings shows which of the two applies;
+  turning it off removes both.
+- **"Show in Finder" from other apps selects the file in aiFlow.** macOS
+  delivers it as a plain "open this file" (verified with a probe viewer —
+  no reveal flag), so when aiFlow is the file viewer an incoming file is
+  shown selected in its folder instead of opening in the editor.
+- **aiFlow's own "Show in Finder" buttons open Finder** again (they went
+  through NSFileViewer, i.e. back into aiFlow): Finder is asked directly
+  (Automation prompt once), else the enclosing folder opens in Finder.
+- Dev builds with the same bundle ID are unregistered from LaunchServices
+  (`build-local.sh --no-run`, and when enabling from /Applications) so a
+  stale copy can't take folders over.
+
 ## Unreleased — Rebrand: aiFlow
 
 - **The app is called aiFlow** — menu bar, Dock, Finder, Spotlight, Activity

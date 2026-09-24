@@ -369,7 +369,7 @@ struct FileContextMenuContent: View {
             }
         }
         Button {
-            NSWorkspace.shared.selectFile(first.url.path, inFileViewerRootedAtPath: "")
+            FinderReveal.reveal([first.url])
         } label: {
             Label("Show in Finder", systemImage: "arrow.up.right.square")
         }

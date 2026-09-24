@@ -51,7 +51,7 @@ struct PathBarView: View {
             // No Copy-path button here: the main toolbar already copies the
             // selection-or-current-path with the same semantics + toast.
             ToolbarActionButton(icon: "arrow.up.right.square", label: "Reveal current folder in Finder") {
-                NSWorkspace.shared.selectFile(currentPath.path, inFileViewerRootedAtPath: "")
+                FinderReveal.reveal([currentPath])
             }
         }
         .padding(.horizontal, hidesChrome ? 0 : 12)

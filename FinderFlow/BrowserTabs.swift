@@ -177,7 +177,7 @@ private struct BrowserTabChip: View {
                 NotificationCenter.default.post(name: .ffCopyPathFeedback, object: nil)
             }
             Button("Reveal in Finder") {
-                NSWorkspace.shared.selectFile(tab.path.path, inFileViewerRootedAtPath: "")
+                FinderReveal.reveal(path: tab.path.path)
             }
         }
         .help("\(tab.path.path) — ⌘T novi tab, ⇧⌘W zatvori")

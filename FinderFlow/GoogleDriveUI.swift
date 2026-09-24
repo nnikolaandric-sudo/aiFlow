@@ -88,7 +88,7 @@ struct GoogleDriveSidebarSection: View {
                         .disabled(gdrive.status(for: acc.id).isSyncing)
                     Button("Open in Browser") { gdrive.openInBrowser(accountID: acc.id) }
                     Button("Show Mirror in Finder") {
-                        NSWorkspace.shared.selectFile(root.path, inFileViewerRootedAtPath: "")
+                        FinderReveal.reveal([root])
                     }
                     Divider()
                     Button("Disconnect…", role: .destructive) { gdrive.disconnect(accountID: acc.id) }
@@ -146,7 +146,7 @@ struct GoogleDriveSidebarSection: View {
                     .onDrag { FileDragSupport.provider(for: [mount.url]) }
                     .contextMenu {
                         Button("Show in Finder") {
-                            NSWorkspace.shared.selectFile(mount.url.path, inFileViewerRootedAtPath: "")
+                            FinderReveal.reveal([mount.url])
                         }
                     }
                 }

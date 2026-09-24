@@ -590,7 +590,7 @@ struct MailAttachPickerView: View {
             Button("Open") { model.browse(only) }
         }
         Divider()
-        Button("Show in Finder") { NSWorkspace.shared.activateFileViewerSelecting(Array(urls)) }
+        Button("Show in Finder") { FinderReveal.reveal(Array(urls)) }
         Button("Copy") {
             let pb = NSPasteboard.general
             pb.clearContents()
@@ -817,7 +817,7 @@ struct MailAttachPreviewPane: View {
                 Text(url.deletingLastPathComponent().path.replacingOccurrences(of: NSHomeDirectory(), with: "~"))
                     .font(.caption2).foregroundStyle(.tertiary).lineLimit(1).truncationMode(.middle)
                 Spacer()
-                Button { NSWorkspace.shared.activateFileViewerSelecting([url]) } label: {
+                Button { FinderReveal.reveal([url]) } label: {
                     Image(systemName: "magnifyingglass")
                 }
                 .buttonStyle(.borderless)
