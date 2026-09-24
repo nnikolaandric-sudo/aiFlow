@@ -38,7 +38,7 @@ struct FirstRunSheet: View {
 
             HStack {
                 Button {
-                    if let u = URL(string: "https://github.com/Gtarafdar/FinderFlow") {
+                    if let u = URL(string: "https://github.com/nnikolaandric-sudo/FinderFlow") {
                         NSWorkspace.shared.open(u)
                     }
                 } label: {

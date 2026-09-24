@@ -4,6 +4,8 @@
 
 # aiFlow
 
+<sub>Built on <a href="https://github.com/Gtarafdar/FinderFlow">FinderFlow</a> by Gobinda Tarafdar (MIT). The bundle ID and folders on disk keep the FinderFlow name, so settings carry over.</sub>
+
 **The Mac file manager Finder should have shipped.**
 
 A fast, native macOS file browser with a built-in code editor, a Markdown
@@ -11,14 +13,19 @@ reader, real Finder-compatible color tags, Spotlight search, archive tools, and
 one-click "open in Terminal / VS Code / Cursor / Claude Code / Codex" — in one
 self-contained app that runs entirely on your Mac.
 
+[![Latest release](https://img.shields.io/github/v/release/nnikolaandric-sudo/FinderFlow?label=release&color=2D52E0)](../../releases)
+[![Downloads](https://img.shields.io/github/downloads/nnikolaandric-sudo/FinderFlow/total?color=2D52E0)](../../releases)
 ![Platform](https://img.shields.io/badge/macOS-14%2B-2D52E0)
-![Universal](https://img.shields.io/badge/Universal-Apple%20Silicon%20%2B%20Intel-444)
+![Apple Silicon](https://img.shields.io/badge/Mac-Apple%20Silicon-444)
 [![License](https://img.shields.io/badge/License-MIT-444)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/nnikolaandric-sudo/FinderFlow?style=flat&color=FF6B5C)](../../stargazers)
 
 **[⬇ Download the latest release](../../releases/latest)** ·
-**[⭐ Star](../../stargazers)**
+**[🌐 Landing page](https://nnikolaandric-sudo.github.io/FinderFlow/)** ·
+**[⭐ Star](../../stargazers)** ·
+**[❤️ Donate](https://gtarafdar.com/donate)**
 
-`macOS 14+` · `Apple Silicon + Intel (universal)` · `≈ 6.8 MB` · `Free & open source (MIT)`
+`macOS 14+` · `Apple Silicon` · `≈ 27 MB` · `Free & open source (MIT)`
 
 </div>
 
@@ -43,10 +50,12 @@ Discord, Check for Updates (GitHub Releases), or configured Secure Share (includ
 | Color tags, Spotlight search, sortable columns, copy-path | Tabs, syntax highlighting, command palette, Sublime-style minimap |
 |  Column view + preview  |  Icon view + color tags  |
 | ![Column view with preview pane](docs/assets/shot-columns.png) | ![Icon view filtered by the Red tag](docs/assets/shot-tags.png) |
-| Miller columns with a live preview & Get Info pane | Resizable icon grid; tap a tag to filter Mac-wide |
+| Finder-style miller columns with a live preview & Get Info pane | Resizable icon grid; tap a tag to filter Mac-wide |
 |  Markdown — read mode  |  Markdown — edit mode  |
 | ![Markdown reader](docs/assets/shot-md-read.png) | ![Markdown editor](docs/assets/shot-md-edit.png) |
 | Rendered preview (no Obsidian needed) | Edit & save with ⌘S, auto-save on close |
+
+> 🌐 **[See the interactive showcase on the landing page →](https://nnikolaandric-sudo.github.io/FinderFlow/#showcase)**
 
 ---
 
@@ -89,7 +98,7 @@ These are the headline reasons people switch. **None of them ship in Finder.**
 <details open>
 <summary><b>Browsing & navigation</b></summary>
 
-- **Three views** — **Column** (miller columns with a live preview
+- **Three views** — **Column** (Finder-style miller columns with a live preview
   pane + optional ancestor "tree" mode), **List** (sortable by Name, Date
   Modified, Date Created, Size, Kind, Extension, with optional *Group by Date*),
   and **Icon** (resizable 32–128 pt grid).
@@ -107,7 +116,7 @@ These are the headline reasons people switch. **None of them ship in Finder.**
 - **Connect one or more Google accounts** (OAuth 2.0 loopback + PKCE, your own
   client ID, refresh tokens in the login Keychain) — no Google Drive for Desktop
   needed, no embedded secret.
-- **Local mirror per account** in Application Support,
+- **Local mirror per account** in `~/Library/Application Support/FinderFlow/`,
   browsed like any other folder: double-click, Quick Look, editor, search, tags
   and archives all work on real files.
 - **Two-way sync, conservative by design** — downloads new/changed files,
@@ -170,7 +179,8 @@ These are the headline reasons people switch. **None of them ship in Finder.**
   **File ▸ Sign Document…** (⌥⌘E) and Finder ▸ Services — for PDFs, images and
   Word / RTF / ODT documents. Each document opens in its own signing window.
 - **Reusable signatures** — draw with the trackpad or mouse (smooth,
-  speed-sensitive ink), type your
+  speed-sensitive ink from a native Swift port of the open-source
+  [signature_pad](https://github.com/szimek/signature_pad), MIT), type your
   name in a script face, or import a photo/scan of your handwritten signature
   (the paper is removed automatically).
 - **Place anywhere** — drag to move, corner handle to resize, ⌫ or the red ×
@@ -205,7 +215,7 @@ These are the headline reasons people switch. **None of them ship in Finder.**
   Open in Terminal, **Open in aiFlow**.
 - **Set aiFlow as your default folder handler** (Settings) — routes folder
   opens to aiFlow via LaunchServices.
-- Custom URL scheme + "Open With" for folders & text files.
+- `finderflow://` URL scheme + "Open With" for folders & text files.
 - **Launch at Login** toggle, in-app toast notifications.
 </details>
 
@@ -239,7 +249,7 @@ through a **senior-QA and security pass** before release.
   (the same reason Finder isn't). It only uses the access *you* grant via standard
   macOS prompts.
 - **E-Sign stays on your Mac.** Saved signatures and the seal key live in
-  Application Support (the key file is
+  `~/Library/Application Support/FinderFlow/Signatures/` (the key file is
   readable only by you); signing and verification never touch the network.
 - **Open source.** Read every line. MIT licensed.
 
@@ -260,14 +270,14 @@ eating your RAM:
 
 | **macOS**    | 14.0 Sonoma or later                       |
 | ------------ | ------------------------------------------ |
-| **Chip**     | Apple Silicon or Intel (universal binary)  |
-| **Download** | ≈ 6.8 MB · `.dmg`                          |
+| **Chip**     | Apple Silicon (M1 or newer); Intel needs an Xcode build |
+| **Download** | ≈ 27 MB · `.dmg` (bundles the Cloudflare helper for Secure Share) |
 | **Extras**   | None — fully self-contained                |
 | **Price**    | Free & open source (MIT)                   |
 
 ## Install
 
-1. Download the latest **`.dmg`** from
+1. Download the latest **`aiFlow-2.0.0.dmg`** from
    [**Releases**](../../releases/latest) and open it.
 2. Drag **aiFlow** into **Applications**.
 3. **First launch (one-time Gatekeeper step).** aiFlow is free and isn't
@@ -282,7 +292,7 @@ eating your RAM:
      xattr -dr com.apple.quarantine /Applications/aiFlow.app
      ```
 4. *(Optional)* Enable the Finder right-click menu under **System Settings →
-   General → Login Items & Extensions → Extensions → aiFlow**.
+   General → Login Items & Extensions → Extensions → aiFlow** (Xcode builds only).
 
 The first time you browse Desktop/Documents/Downloads (or use Get Info / Open in
 Terminal), macOS shows its **standard permission prompts** — just click **Allow**.
@@ -293,27 +303,65 @@ These are normal for any file manager.
 Requires Xcode 16 / Swift 5.9+.
 
 ```sh
-git clone <this-repo-url>
-cd aiFlow
-open *.xcodeproj      # build & run (⌘R)
+git clone https://github.com/nnikolaandric-sudo/FinderFlow.git
+cd FinderFlow
+open FinderFlow.xcodeproj      # build & run (⌘R)
 ```
 
-Produce a distributable Universal DMG:
+Produce a distributable DMG (Universal with Xcode, Apple Silicon with `--prebuilt`):
 
 ```sh
-./release.sh                    # → build/aiFlow-<version>.dmg
+./release.sh                    # → build/aiFlow-<version>.dmg (+ .sha256)
+./release.sh --prebuilt build/local/aiFlow.app   # no Xcode: package build-local.sh output
 ```
+
+## Landing page (GitHub Pages)
+
+A full landing page lives in [`docs/`](docs/) and is published with GitHub Pages:
+
+**<https://nnikolaandric-sudo.github.io/FinderFlow/>**
+
+It serves from the `main` branch `/docs` folder (Settings → Pages → Deploy from a
+branch → `main` → `/docs`).
 
 > Full capability list & development history: **[CHANGELOG.md](CHANGELOG.md)**.
 
 ---
 
+## About the maker
+
+<img src="docs/assets/maker.png" alt="Gobinda Tarafdar" width="120" align="left" hspace="20" />
+
+**Gobinda Tarafdar** — WordPress product marketer by trade, stubborn
+problem-solver by habit, lifelong Harry Potter devotee by heart.
+
+By day I'm the Product Marketing Specialist at **WPBakery** — the page builder
+that quietly powers a sizeable corner of the WordPress universe. Before that, I
+helped a single plugin cross **400,000+ active users** through positioning, user
+research, and a relentless focus on what actually moves the needle. When the
+day-job owl flies home, I tinker on my own little workshop of spells — FinderFlow
+is one of them.
+
+<br clear="left" />
+
+**Also from the workshop:**
+
+- **[WPBakery](https://wpbakery.com/)** — the page builder I do product marketing for.
+- **[Docscriber](https://thedocscriber.com/)** — documentation, conjured.
+- **[TheRecaller](https://therecaller.com/)** — a memory charm for what you forget online.
+- **[TheEditra](https://theeditra.com/)** — a video-editing cauldron of my own brewing.
+- **[The Quill Press](https://thequillpress.com/)** — tech news styled after the Daily Prophet.
+- **[Costlas](https://costlas.com/)** — cost-of-living for 140 countries & 1,377 cities.
+
 ## Support this project
 
-If aiFlow saves you a few trips to Finder, here's how to help — optional,
-appreciated:
+If FinderFlow saves you a few trips to Finder, here's how to help — all optional,
+all appreciated:
 
 - ⭐ **[Star it on GitHub](../../stargazers)** — helps others find it.
+- ❤️ **[Donate](https://gtarafdar.com/donate)** — keeps the workshop lit.
+- 🐦 **[Follow on X / Twitter](https://x.com/Gtarafdarr)**
+- 💼 **[Connect on LinkedIn](https://www.linkedin.com/in/gobinda-tarafdar/)**
 
 ## Notes on distribution
 
@@ -327,12 +375,13 @@ In-app updates are optional and can be turned off in **Settings → Updates**.
 
 **Where updates come from**
 
-- Only from official **GitHub Releases** on this repo — hardcoded in the app, not user-configurable.
+- Only from official [**GitHub Releases**](https://github.com/nnikolaandric-sudo/FinderFlow/releases)
+  on `nnikolaandric-sudo/FinderFlow` — hardcoded in the app, not user-configurable.
 - Downloads use **HTTPS** (GitHub’s TLS).
 
 **Integrity check**
 
-- Every release ships a companion `aiFlow-x.y.z.dmg.sha256` file (standard
+- Every release ships a companion `aiFlow-x.y.dmg.sha256` file (standard
   `shasum` format).
 - Before installing, the app **verifies the DMG’s SHA-256 hash** against that file.
 - If the checksum is missing or doesn’t match, the update is **blocked**.
@@ -356,13 +405,15 @@ In-app updates are optional and can be turned off in **Settings → Updates**.
 
 - Apple Developer ID signatures or notarization (requires a paid Apple account).
 - For maximum assurance, compare the published SHA-256 on the release page with
-  a hash you compute locally: `shasum -a 256 aiFlow-x.y.z.dmg`.
+  a hash you compute locally: `shasum -a 256 aiFlow-x.y.dmg`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT © Gobinda Tarafdar. See [LICENSE](LICENSE).
 
-Third-party notices are kept with the source files they apply to.
+Third-party: E-Sign's drawing pad is a Swift port of
+[signature_pad](https://github.com/szimek/signature_pad) — MIT © 2018 Szymon
+Nowak; the full notice is at the end of `FinderFlow/SignaturePad.swift`.
 
 ---
 

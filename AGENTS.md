@@ -49,6 +49,11 @@ Pravila:
 - App bez Xcode-a: `./build-local.sh --no-run` (samo Command Line Tools).
   U rsync kopiji bez `build/` kopiraj i `build/cloudflared/` — inače build
   skida cloudflared s mreže i pada bez interneta.
+- Novi `.swift` fajl upiši i u `FinderFlow.xcodeproj/project.pbxproj`
+  (PBXBuildFile + PBXFileReference + grupa + Sources faza app targeta).
+  `build-local.sh` kompajlira `FinderFlow/*.swift` pa propust ne vidi, ali
+  `release.sh` (xcodebuild) pada — 2026-09-24 je nedostajalo 18 fajlova.
+  Provjera: svaki `FinderFlow/*.swift` mora imati `path = <ime>;` u pbxproj.
 - CLI provera: `./tools/pdf-inspect/run.sh --build-only`.
 - Gdrive harness: `./tools/gdrive-test/run.sh`.
 

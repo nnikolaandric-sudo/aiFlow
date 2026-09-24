@@ -3,8 +3,10 @@ import AppKit
 import SwiftUI
 import CryptoKit
 
-/// Checks GitHub Releases for a newer FinderFlow build and can download + install
-/// the .dmg with one click (quit → replace → relaunch).
+/// Checks GitHub Releases for a newer aiFlow build and can download + install
+/// the .dmg with one click (quit → replace → relaunch). aiFlow ships from the
+/// nnikolaandric-sudo/FinderFlow fork; upstream FinderFlow releases are a
+/// different app and must never be offered as an update.
 @MainActor
 final class UpdateManager: ObservableObject {
 
@@ -25,7 +27,7 @@ final class UpdateManager: ObservableObject {
 
     @Published private(set) var phase: Phase = .idle
 
-    private let repoOwner = "Gtarafdar"
+    private let repoOwner = "nnikolaandric-sudo"
     private let repoName  = "FinderFlow"
     private let checkInterval: TimeInterval = 12 * 3600   // twice a day max
 
@@ -132,7 +134,7 @@ final class UpdateManager: ObservableObject {
     private func fetchLatestRelease() async throws -> ReleaseInfo {
         let url = URL(string: "https://api.github.com/repos/\(repoOwner)/\(repoName)/releases/latest")!
         var req = URLRequest(url: url)
-        req.setValue("FinderFlow/\(currentVersion)", forHTTPHeaderField: "User-Agent")
+        req.setValue("aiFlow/\(currentVersion)", forHTTPHeaderField: "User-Agent")
         req.timeoutInterval = 20
 
         let (data, resp) = try await URLSession.shared.data(for: req)
@@ -154,7 +156,7 @@ final class UpdateManager: ObservableObject {
         return ReleaseInfo(version: version, notes: release.body ?? "", dmgURL: dmgURL, sha256: sha256)
     }
 
-    /// Reads the companion `FinderFlow-x.y.dmg.sha256` asset published with each release.
+    /// Reads the companion `aiFlow-x.y.dmg.sha256` asset published with each release.
     private func fetchExpectedSHA256(for dmgName: String, assets: [GHAsset]) async throws -> String {
         guard let hashAsset = assets.first(where: { $0.name == "\(dmgName).sha256" }),
               let hashURL = URL(string: hashAsset.browser_download_url),
@@ -238,7 +240,9 @@ final class UpdateManager: ObservableObject {
         }
         trap cleanup EXIT
 
-        // Wait up to two minutes for this copy of FinderFlow to quit.
+        # Wait up to two minutes for this copy of aiFlow to quit.
+        # (Bash comments only in here: a "//" line runs as a command, fails
+        # with "is a directory" and set -e aborts every update after quit.)
         for _ in $(seq 240); do kill -0 "$APP_PID" 2>/dev/null || break; sleep 0.5; done
         if kill -0 "$APP_PID" 2>/dev/null; then echo "aiFlow didn't quit; update skipped." >&2; exit 1; fi
 

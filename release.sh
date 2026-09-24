@@ -1,11 +1,19 @@
 #!/bin/bash
 #
-# release.sh — Build a Universal (Apple Silicon + Intel) Release of FinderFlow
-# and package it into a distributable .dmg for GitHub Releases.
+# release.sh — Build a Universal (Apple Silicon + Intel) Release of aiFlow
+# and package it into a distributable .dmg for GitHub Releases
+# (github.com/nnikolaandric-sudo/FinderFlow — the in-app updater reads there).
 #
-# Usage:  ./release.sh
+# Usage:  ./release.sh                         # Xcode: Universal + Finder extension
+#         ./release.sh --prebuilt PATH.app     # package an existing build
+#                                              # (e.g. build/local/aiFlow.app from
+#                                              # build-local.sh — no Xcode needed;
+#                                              # Apple Silicon only, no extension)
+#         --no-layout                          # skip the Finder window styling
+#                                              # (no Finder/Automation prompt)
 #
-# Output: build/FinderFlow-<version>.dmg
+# Output: build/aiFlow-<version>.dmg + build/aiFlow-<version>.dmg.sha256
+# Upload BOTH: the updater refuses a release without the .sha256 asset.
 #
 # NOTE: The app is ad-hoc signed and NOT notarized (no paid Apple Developer
 # account). Downloaders must do a one-time Gatekeeper bypass — the steps are
@@ -14,8 +22,17 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-APP_NAME="FinderFlow"
-SCHEME="FinderFlow"
+APP_NAME="aiFlow"              # product (PRODUCT_NAME) — bundle, executable, DMG
+SCHEME="FinderFlow"            # Xcode scheme / target name (internal)
+PREBUILT=""
+LAYOUT=1
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --prebuilt) PREBUILT="${2:?--prebuilt needs a path to an .app}"; shift 2 ;;
+        --no-layout) LAYOUT=0; shift ;;
+        *) echo "Unknown option: $1" >&2; exit 2 ;;
+    esac
+done
 CONFIG="Release"
 PROJECT="FinderFlow.xcodeproj"
 
@@ -28,6 +45,11 @@ echo "==> Cleaning previous release artifacts"
 rm -rf "$DD" "$STAGE"
 mkdir -p "$OUT"
 
+if [ -n "$PREBUILT" ]; then
+    APP="$PREBUILT"
+    [ -d "$APP" ] || { echo "ERROR: $APP not found" >&2; exit 1; }
+    echo "==> Packaging prebuilt $APP"
+else
 echo "==> Building Universal Release (arm64 + x86_64)"
 xcodebuild \
     -project "$PROJECT" \
@@ -45,14 +67,25 @@ if [ ! -d "$APP" ]; then
     echo "ERROR: build did not produce $APP" >&2
     exit 1
 fi
+fi
 
 echo "==> Verifying Universal binary"
 ARCHS_FOUND=$(lipo -archs "$APP/Contents/MacOS/$APP_NAME")
 echo "    Main app:  $ARCHS_FOUND"
 if [[ "$ARCHS_FOUND" != *"arm64"* || "$ARCHS_FOUND" != *"x86_64"* ]]; then
-    echo "ERROR: app is not Universal (got: $ARCHS_FOUND)" >&2
-    exit 1
+    if [ -n "$PREBUILT" ]; then
+        echo "    WARNING: not Universal ($ARCHS_FOUND) — say 'Apple Silicon only' in the release notes"
+    else
+        echo "ERROR: app is not Universal (got: $ARCHS_FOUND)" >&2
+        exit 1
+    fi
 fi
+# The updater installs only an image whose app carries this bundle ID.
+BID=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Contents/Info.plist")
+[ "$BID" = "com.finderflow.app" ] || { echo "ERROR: bundle ID is $BID, updater expects com.finderflow.app" >&2; exit 1; }
+codesign --verify --deep --strict "$APP" 2>/dev/null \
+    && echo "    Signature: $(codesign -dvv "$APP" 2>&1 | awk -F= '/^Authority=/{print $2; exit}')" \
+    || echo "    WARNING: signature does not verify — Gatekeeper will refuse it outright"
 EXT="$APP/Contents/PlugIns/FinderFlowExtension.appex/Contents/MacOS/FinderFlowExtension"
 [ -f "$EXT" ] && echo "    Extension: $(lipo -archs "$EXT")"
 
@@ -71,40 +104,48 @@ chmod +x "$STAGE/Fix Gatekeeper.command"
 mkdir -p "$STAGE/.background"
 cp "dmg/background.png" "$STAGE/.background/background.png"
 
-cat > "$STAGE/Install & First Open.txt" <<'EOF'
-FinderFlow — Install & First Open
-=================================
+if [ -d "$APP/Contents/PlugIns/FinderFlowExtension.appex" ]; then
+    EXT_NOTE="4. Optional Finder right-click menu:
+   System Settings → General → Login Items & Extensions → Extensions → aiFlow."
+else
+    EXT_NOTE="4. This build has no Finder right-click extension (built without Xcode)."
+fi
+if [[ "$ARCHS_FOUND" == *"x86_64"* ]]; then ARCH_NOTE="Apple Silicon & Intel"; else ARCH_NOTE="Apple Silicon (M1 or newer)"; fi
 
-1. Drag FinderFlow onto the Applications folder in this window.
+cat > "$STAGE/Install & First Open.txt" <<EOF
+aiFlow — Install & First Open
+=============================
+
+1. Drag aiFlow onto the Applications folder in this window.
 
 2. FIRST OPEN (safe, one-time):
-   FinderFlow is free & open-source and is not signed with a paid Apple
+   aiFlow is free & open-source and is not signed with a paid Apple
    Developer certificate. macOS Gatekeeper will block it once — that is
    expected and safe.
 
    Sequoia / recent macOS:
-     • Open FinderFlow once (it may be blocked or only offer Move to Trash).
+     • Open aiFlow once (it may be blocked or only offer Move to Trash).
      • Open System Settings → Privacy & Security.
-     • Scroll to the message about FinderFlow and click Open Anyway.
-     • Open FinderFlow again and confirm.
+     • Scroll to the message about aiFlow and click Open Anyway.
+     • Open aiFlow again and confirm.
 
    Quick alternative — double-click "Fix Gatekeeper.command" in this window
    (after the app is in Applications). It only clears quarantine on
-   /Applications/FinderFlow.app and then opens the app. No network, no password.
+   /Applications/aiFlow.app and then opens the app. No network, no password.
 
    Or in Terminal:
-     xattr -dr com.apple.quarantine /Applications/FinderFlow.app
+     xattr -dr com.apple.quarantine /Applications/aiFlow.app
 
 3. Folder permission prompts (normal — click Allow):
    Desktop / Documents / Downloads access, plus occasional Finder/Terminal
    control prompts for Get Info / Open in Terminal.
 
-4. Optional Finder right-click menu:
-   System Settings → General → Login Items & Extensions → Extensions → FinderFlow.
+$EXT_NOTE
 
-Requirements: macOS 14 Sonoma or newer · Apple Silicon & Intel.
+Requirements: macOS 14 Sonoma or newer · $ARCH_NOTE.
 
-https://github.com/Gtarafdar/FinderFlow
+aiFlow is built on FinderFlow by Gobinda Tarafdar (MIT).
+https://github.com/nnikolaandric-sudo/FinderFlow
 EOF
 
 echo "==> Creating styled DMG (drag to Applications)"
@@ -131,6 +172,7 @@ echo "    Mounted: $MOUNT_DIR"
 VOL_NAME=$(basename "$MOUNT_DIR")
 
 # Apply Finder window layout (icon positions + background)
+if [ "$LAYOUT" -eq 1 ]; then
 osascript <<APPLESCRIPT
 tell application "Finder"
   tell disk "$VOL_NAME"
@@ -159,6 +201,7 @@ tell application "Finder"
   end tell
 end tell
 APPLESCRIPT
+fi
 
 sync
 hdiutil detach "$MOUNT_DIR" -quiet || hdiutil detach "$MOUNT_DIR" -force -quiet
