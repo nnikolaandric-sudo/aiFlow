@@ -216,6 +216,8 @@ struct FileContextMenuContent: View {
         }
         // PDF Tools ▸ combine / images → PDF / split / OCR… (PDFTools.swift).
         PDFToolsMenuItems(urls: urls)
+        // Version History… / Track Versions (VersionViews.swift).
+        VersionMenuItems(urls: urls)
         // Workspace quick capture: task/reminder auto-linked to this file
         // (§4+§6). Works anywhere — outside a workspace the parent folder
         // is enabled first, so the entry always has a home.

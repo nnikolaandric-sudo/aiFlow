@@ -8,6 +8,7 @@ struct BrowseSettingsDetail: View {
         Form {
             BrowseDefaultsSettingsSection()
             TextEditorSettingsSection()
+            VersionSettingsSection()
         }
         .formStyle(.grouped)
     }

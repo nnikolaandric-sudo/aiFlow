@@ -258,17 +258,33 @@ final class WorkspaceStore: ObservableObject {
         var hasShare: Bool = false
         /// Active (not done) reminder on the file.
         var hasReminder: Bool = false
+        /// Version History label ("v4", "v3.2"), from VersionStore.
+        var versionLabel: String? = nil
 
         var isEmpty: Bool {
             openTasks == 0 && !endorsed && expiresInDays == nil && !hasShare && !hasReminder
+                && versionLabel == nil
         }
+    }
+
+    /// Set by VersionStore.start() — keeps this store free of the versions
+    /// engine (and headless-testable without it).
+    static var versionLabelProvider: ((URL) -> String?)?
+
+    /// Another store changed what the badges show (Version History labels).
+    func refreshBadges() {
+        version &+= 1
+        objectWillChange.send()
     }
 
     /// Cheap badge for list rows: tasks + review + expiry from JSON, share
     /// from the lazily-populated cache (see `noteSharePresence`).
     func badge(for fileURL: URL) -> Badge? {
+        let versionLabel = Self.versionLabelProvider?(fileURL)
         guard let (ws, root) = enclosingWorkspace(for: fileURL),
-              let rel = relativePath(of: fileURL, to: root), !rel.isEmpty else { return nil }
+              let rel = relativePath(of: fileURL, to: root), !rel.isEmpty else {
+            return versionLabel.map { Badge(versionLabel: $0) }
+        }
         let open = ws.openTasksForFile(relative: rel).count
         let meta = ws.files[rel]
         let endorsed = meta?.review?.status.isEndorsed ?? false
@@ -279,7 +295,7 @@ final class WorkspaceStore: ObservableObject {
         let share = sharePresence[Self.canonical(fileURL)] ?? false
         let reminder = ws.activeReminders.contains { $0.linkedFile == rel }
         let b = Badge(openTasks: open, endorsed: endorsed, expiresInDays: days,
-                      hasShare: share, hasReminder: reminder)
+                      hasShare: share, hasReminder: reminder, versionLabel: versionLabel)
         return b.isEmpty ? nil : b
     }
 

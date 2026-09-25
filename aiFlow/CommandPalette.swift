@@ -169,6 +169,14 @@ enum PaletteCatalog {
                     WorkspaceComposer.requestReminder(for: sel[0]); FFMainWindow.bringToFront()
                 })
             }
+            if sel.count == 1, VersionStore.shared.family(for: sel[0]) != nil || VersionStore.shared.isTracked(sel[0]) {
+                let v = VersionStore.shared.label(for: sel[0]).map { " (\($0))" } ?? ""
+                out.append(PaletteItem(id: "sel.versions", title: "Version History of \(quoted(sel, noun: ""))\(v)…",
+                                       symbol: "clock.arrow.circlepath", group: .selection,
+                                       keywords: "verzije historija istorija version history restore vrati") {
+                    VersionHistoryWindowManager.shared.open(sel[0])
+                })
+            }
             out.append(PaletteItem(id: "sel.copypath", title: "Copy Path of \(quoted(sel, noun: "items"))",
                                    symbol: "doc.on.clipboard", group: .selection, keywords: "putanja kopiraj path") {
                 let pb = NSPasteboard.general
@@ -186,6 +194,16 @@ enum PaletteCatalog {
                 FolderRulesWindowManager.shared.open(folder)
             })
             let isWorkspace = WorkspaceStore.shared.isWorkspace(folder)
+            if !isWorkspace {
+                let tracking = VersionStore.shared.isUserFolder(folder)
+                out.append(PaletteItem(id: "folder.versions",
+                                       title: tracking ? "Stop Tracking Versions in “\(name)”" : "Track Versions in “\(name)”",
+                                       symbol: "clock.arrow.circlepath", group: .selection,
+                                       keywords: "verzije historija version history prati")
+                {
+                    VersionStore.shared.setFolderTracked(folder, !tracking)
+                })
+            }
             out.append(PaletteItem(id: "folder.workspace",
                                    title: isWorkspace ? "Disable Workspace on “\(name)”" : "Enable Workspace on “\(name)”",
                                    symbol: isWorkspace ? "briefcase.fill" : "briefcase", group: .selection,

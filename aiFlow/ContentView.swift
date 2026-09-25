@@ -2656,6 +2656,8 @@ struct FilePreviewPanel: View {
                         detailRow("Created",  item.formattedDateCreated)
                         GoogleDriveInfoRow(url: item.url)
                         ESignPreviewRow(url: item.url)
+                        // Version History summary + History… (VersionViews.swift).
+                        VersionInfoRow(url: item.url)
                     }
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)

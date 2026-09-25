@@ -126,6 +126,10 @@ onoga što korisnik eksplicitno odobri.
   selekciju browsera daje `FFSelectionBridge` modifier na ContentView),
   `PDFTools.swift` (`PDFToolsEngine` bez UI-ja + prozor + desni klik +
   Finder Services), `AppIntents.swift` (Shortcuts akcije + App Shortcut).
+- Today izmjene idu SAMO kroz `TodayEditor.apply` (jedan `updateWorkspace` po
+  workspaceu + activity red po stavci) i `TodayModel.perform` (undo preko
+  window UndoManagera = snapshot workspacea). Dokumenti se iz Today nikad ne
+  brišu — „delete" na reviewu/isteku samo odbacuje podsjetnik.
 - PDF Tools nikad ne mijenja original — rezultat je nova datoteka pored
   njega (`uniqueDestinationURL`). OCR = PDFKit `saveTextFromOCROption`
   (Vision na uređaju, ništa se ne uploaduje).
@@ -138,3 +142,25 @@ onoga što korisnik eksplicitno odobri.
   `FF_MAIL_DIR`, `FF_FOLDER_RULES_DIR`, `FF_SHARE_DIR` (Today čita Secure
   Share registar), sve na privremene foldere. Folder Rules čeka da se
   svjež fajl „slegne" — u testu postavi stariji modification date.
+
+## Version History (verzije dokumenata)
+
+- Kod: `VersionStore.swift` (motor, Foundation-only: FSEvents watcher,
+  APFS clonefile snimci u `Application Support/FinderFlow/Versions/blobs`
+  imenovani po SHA-256, labele v1…/v3.1, rename/fork detekcija, 5 GB cap),
+  `VersionViews.swift` (stablo, Preview/Restore/Duplicate/Compare, Settings ▸
+  Browse sekcija, desni klik). Badge `v4` ide kroz `WorkspaceStore.Badge.versionLabel`
+  (`WorkspaceStore.versionLabelProvider` postavlja VersionStore.start()).
+- Prate se Workspace folderi + folderi iz desnog klika ▸ Track Versions.
+  Korisnikovi fajlovi se diraju SAMO na Restore/Duplicate (Restore prvo
+  snimi trenutno stanje). Obrezivanje briše samo naše kopije, nikad
+  trenutnu verziju ni zadnje 3 po fajlu.
+- Putanje: `VersionStore.canonical` = realpath foldera + ime (FSEvents oblik);
+  NE `resolvingSymlinksInPath`/`standardizedFileURL` — oni skidaju `/private`
+  samo dok fajl postoji. Labele se registruju pod oba zapisa.
+- Fork za .docx/.xlsx/.pptx: porede se samo sadržajni dijelovi (document.xml,
+  slides, sheets) raspakovani preko Compression (raw DEFLATE), 3-gram riječi;
+  šablonski dijelovi (styles/theme) bi inače spojili nepovezane dokumente.
+- Testovi/harness: `FF_VERSIONS_DIR=<privremeni folder>`, `processSync` /
+  `scanSync` / `setRootsSync`, `VersionStore.capBytes` se smije spustiti u
+  testu. Nikad ne diraj korisnikov `Application Support/FinderFlow/Versions/`.

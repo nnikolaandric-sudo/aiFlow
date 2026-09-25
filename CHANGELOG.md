@@ -5,6 +5,66 @@ relative to the 1.0 release.
 
 ---
 
+## 2.3.0 (2026-09-25)
+
+Version History for every document (v1…v4, branches v3.1), and a Today
+you can swipe, multi-select and link documents from.
+
+### Version History: every document remembers its versions
+
+- **Save = next version, Save As / Duplicate = a branch.** In every Workspace
+  folder and in folders you turn on (right-click ▸ *Track Versions*), each
+  save of any file — Word, Excel, PowerPoint, PDF, Photoshop, CAD, code,
+  anything — becomes v2, v3, v4…; a Save As or Duplicate of v3 becomes
+  **v3.1**, and editing that copy makes v3.2, v3.3. aiFlow needs no plug-in
+  for any app: it follows the file (FSEvents → settle → snapshot).
+- **Knows a Save As when it sees one.** A new file with the same bytes, or
+  the same text inside a .docx / .xlsx / .pptx / .odt (only the content parts
+  are compared — not the styles and themes every file from one template
+  shares), made soon after working on the original, becomes its branch. When
+  unsure, aiFlow asks: *Create Branch v3.1 / Keep Separate* — in the file's
+  history and in Today ▸ Documents. Renamed and moved files keep their
+  history; deleted files keep it too.
+- **Version History** in the preview panel (a *Versions* tab for workspace
+  files, a one-line summary with *History…* for others), right-click ▸
+  *Version History…* and ⌘K: the tree as you'd draw it (main line v5…v1,
+  branches under the version they came from), and for any version
+  **Preview · Restore · Duplicate · Compare**. Restore saves the current
+  state first and becomes the next version ("Restored from v2"); Duplicate
+  writes "Ugovor (v2).docx" as branch v2.1; Compare shows the changed lines
+  of Word, RTF, PDF, Excel, PowerPoint and text files.
+- **The version shows in every file list** — a small `v7` / `v4.2` next to
+  the name.
+- **Storage:** copies are APFS clones (no extra space until the file
+  changes), stored once per content. History is capped at 5 GB — the oldest
+  copies go first, never a file's current version or its last 3; files over
+  500 MB aren't copied. Settings ▸ Browse ▸ Version History: on/off, tracked
+  folders, storage used, Clear All History. Everything stays on this Mac.
+
+### Today: swipe, select many, link documents
+
+- **Swipe a row right to delete** (tasks, reminders, file requests), **left
+  for Done** plus *Tomorrow* / *Snooze 1 hour*. Documents are never deleted:
+  the same swipe only dismisses the review or marks the expiry "not needed".
+- **Select many** (⌘/⇧-click, ⌘A): a floating bar does Done, Move (Today /
+  Tomorrow / Next Week), Link File, Copy and Delete for all of them; the
+  right-click menu works on the whole selection. Keys: Space = done,
+  ⌫ = delete, ⏎ = rename in place, ⌘C = copy as a text list, Esc.
+- **Every change can be undone** — the banner's *Undo* or ⌘Z / ⇧⌘Z; bulk
+  edits are one undo step and one store write per workspace.
+- **Link documents:** drop a file from aiFlow or Finder on a task or
+  reminder, or *Link to File…*; the paperclip chip opens it and can be
+  dragged out into Mail or a browser.
+- **Quick add** at the top: „Nazvati Marka sutra u 15h", „Faktura u petak",
+  „Review 3pm tomorrow" (bs/hr/sr + English dates and times, previewed as you
+  type). Drop a file on the field and the task is linked to it — in that
+  file's workspace, enabling one on its folder if needed.
+- Progress ring (done vs. due today), filters (Tasks / Reminders / Documents
+  / Waiting), collapsible sections, *Completed Today* with reopen, *Move All
+  to Today* for overdue work, workspace color dots, priority marks.
+
+---
+
 ## 2.2.0 (2026-09-24)
 
 Today, the ⌘K command palette, PDF Tools and Shortcuts actions; AI privacy

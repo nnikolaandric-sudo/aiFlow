@@ -661,6 +661,14 @@ final class FFNameCell: NSTableCellView {
                     attributes: [.foregroundColor: NSColor.systemOrange]))
                 tips.append("Has a reminder")
             }
+            // Version History: "v4" / "v3.2" (VersionStore via the badge).
+            if let v = b.versionLabel {
+                if full.length > 0 { full.append(NSAttributedString(string: " ")) }
+                full.append(NSAttributedString(
+                    string: v,
+                    attributes: [.foregroundColor: NSColor.secondaryLabelColor]))
+                tips.append("Version \(v) — right-click ▸ Version History")
+            }
         }
         if let g = GitService.shared.status(for: item.url) {
             if full.length > 0 { full.append(NSAttributedString(string: " ")) }

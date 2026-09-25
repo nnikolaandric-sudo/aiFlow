@@ -21,8 +21,8 @@ APP_NAME="FinderFlow"          # Swift module (internal, unchanged: archived cla
 BUNDLE_NAME="aiFlow"           # what Finder, the Dock and Spotlight show
 EXEC_NAME="aiFlow"             # process name in Activity Monitor / Force Quit
 BUNDLE_ID="com.finderflow.app"
-VERSION="2.2.0"
-BUILD_NUM="11"
+VERSION="2.3.0"
+BUILD_NUM="12"
 DEPLOYMENT_TARGET="14.0"
 CONFIG="Debug"
 RUN_APP=1
@@ -108,8 +108,8 @@ plist = {
     'CFBundleName': 'aiFlow',
     'CFBundleDisplayName': 'aiFlow',
     'CFBundlePackageType': 'APPL',
-    'CFBundleShortVersionString': '2.2.0',
-    'CFBundleVersion': '11',
+    'CFBundleShortVersionString': '2.3.0',
+    'CFBundleVersion': '12',
     'LSMinimumSystemVersion': '14.0',
     'NSHumanReadableCopyright': 'Copyright © 2024 aiFlow. All rights reserved.',
     'NSPrincipalClass': 'NSApplication',

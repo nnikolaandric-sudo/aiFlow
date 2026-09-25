@@ -45,6 +45,8 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
         NSUpdateDynamicServices()
         // Folder Rules: watched folders start sorting new files (FolderRules.swift).
         FolderRulesService.shared.start()
+        // Version History: watch Workspace + chosen folders (VersionStore.swift).
+        VersionStore.shared.start()
         // Mail integration: globalni ⌥⌘A picker (MailAttachService.swift).
         MailAttachService.shared.start()
         FileCommandPaletteWindowManager.shared.installShortcutMonitor()

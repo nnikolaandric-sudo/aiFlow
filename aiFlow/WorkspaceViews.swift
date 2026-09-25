@@ -53,6 +53,15 @@ struct WorkspaceBadgeView: View {
                     .foregroundStyle(.orange)
                     .help("Has a reminder")
             }
+            // Version History (VersionViews.swift): current version of the file.
+            if let v = badge.versionLabel {
+                Text(v)
+                    .font(.system(size: 9, weight: .semibold, design: .rounded))
+                    .padding(.horizontal, 4).padding(.vertical, 1)
+                    .background(Capsule().fill(Color.secondary.opacity(0.14)))
+                    .foregroundStyle(.secondary)
+                    .help("Version \(v) — right-click ▸ Version History")
+            }
         }
     }
 }
@@ -1262,6 +1271,7 @@ struct FileRequestSheet: View {
 
 enum WsFileTab: String, CaseIterable, Identifiable {
     case details = "Details", tasks = "Tasks", review = "Review", share = "Share", relations = "Relations"
+    case versions = "Versions"
     var id: String { rawValue }
 }
 
@@ -1320,6 +1330,8 @@ struct WorkspaceFilePanel: View {
                         case .relations:
                             WsFileRelationsTab(workspaceID: workspaceID, rootURL: rootURL,
                                                relative: relative, onRevealFile: onRevealFile)
+                        case .versions:
+                            VersionPanel(url: fileURL)
                         }
                     }
                     .padding(10)
