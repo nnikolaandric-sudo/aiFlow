@@ -150,7 +150,15 @@ final class GitService: ObservableObject {
     @Published var ahead: Int = 0
     @Published var behind: Int = 0
     /// Svi dirty fajlovi repo-a, ključ = apsolutna putanja.
-    @Published var statuses: [String: GitFileStatus] = [:]
+    @Published var statuses: [String: GitFileStatus] = [:] {
+        didSet { rebuildBadges() }
+    }
+    /// Row badges: every changed path plus its folders (strongest child
+    /// state), built once per refresh — the file lists look up O(1) instead
+    /// of scanning every status per folder row (34k in a big repo). Untracked
+    /// is left out: a "?" next to each document in a folder that happens to
+    /// be a repo (e.g. ~/Documents) says nothing useful.
+    private(set) var badges: [String: GitFileStatus] = [:]
     @Published var isLoading = false
     @Published var lastError: String?
     /// Lista branch-eva (osvježava se uz status).
@@ -344,6 +352,40 @@ final class GitService: ObservableObject {
 
     /// Broj dirty fajlova (za status bar / repo panel).
     var changeCount: Int { statuses.count }
+
+    /// Badge for a list row (files and folders), never "?" — see `badges`.
+    func badgeStatus(for url: URL) -> GitFileStatus? {
+        badges[url.standardizedFileURL.path]
+    }
+
+    /// Git doesn't track this file or a folder above it: the preview shows
+    /// the plain file, not Diff / History / Repo tabs with nothing in them.
+    func isUntracked(_ url: URL) -> Bool {
+        let root = repoRoot?.standardizedFileURL.path
+        var p = url.standardizedFileURL.path
+        while !p.isEmpty, p != "/" {
+            if statuses[p]?.state == .untracked { return true }
+            if p == root { break }
+            p = (p as NSString).deletingLastPathComponent
+        }
+        return false
+    }
+
+    private func rebuildBadges() {
+        let root = repoRoot?.standardizedFileURL.path
+        var out: [String: GitFileStatus] = [:]
+        for (path, st) in statuses where st.state != .untracked {
+            out[path] = st
+            var dir = (path as NSString).deletingLastPathComponent
+            while !dir.isEmpty, dir != "/" {
+                if let cur = out[dir], rank(cur.state) <= rank(st.state) { break }
+                out[dir] = st
+                if dir == root { break }
+                dir = (dir as NSString).deletingLastPathComponent
+            }
+        }
+        badges = out
+    }
 
     private func rank(_ s: GitState) -> Int {
         switch s {

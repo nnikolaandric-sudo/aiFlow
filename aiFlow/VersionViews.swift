@@ -130,9 +130,13 @@ struct VersionPanel: View {
             if let s = store.suggestion(for: url) { suggestionCard(s) }
             if let (fam, li) = found {
                 header(fam, li)
+                VersionGuide()
                 tree(fam, currentLine: li)
                 if let row = VersionTreeRow.build(fam).first(where: { $0.id == selectedID }) {
                     actions(row, fam)
+                } else {
+                    Text("Click a version to preview, restore, duplicate or compare it.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
             } else if store.isTracked(url) {
                 emptyState("No versions yet", "The first version is saved in a moment — or now:",
@@ -148,6 +152,8 @@ struct VersionPanel: View {
                 Text(message).font(.caption).foregroundStyle(.secondary)
             }
         }
+        .onAppear { preselect(found) }
+        .onChange(of: url) { _, _ in selectedID = nil; preselect(store.family(for: url)) }
         .alert("Restore \(confirmRestore?.label ?? "")?", isPresented: Binding(
             get: { confirmRestore != nil }, set: { if !$0 { confirmRestore = nil } })) {
             Button("Restore") { if let v = confirmRestore, let f = found { restore(v, fam: f.family) } }
@@ -155,6 +161,14 @@ struct VersionPanel: View {
         } message: {
             Text("“\(url.lastPathComponent)” gets the content of \(confirmRestore?.label ?? ""). What it has now is kept in the history, so nothing is lost.")
         }
+    }
+
+    /// The version before the current one is what people come to restore
+    /// or compare — select it so the actions are right there.
+    private func preselect(_ found: (family: VersionFamily, line: Int)?) {
+        guard selectedID == nil, let (fam, li) = found else { return }
+        let versions = fam.lines[li].versions
+        selectedID = (versions.count >= 2 ? versions[versions.count - 2] : versions.last)?.id
     }
 
     // MARK: Parts
@@ -173,8 +187,8 @@ struct VersionPanel: View {
                 .buttonStyle(.borderless)
                 .help("Save a version now")
             }
-            Text("\(mainCount) main version\(mainCount == 1 ? "" : "s") · \(fam.branchCount) branch\(fam.branchCount == 1 ? "" : "es")")
-                .font(.caption).foregroundStyle(.secondary)
+            Text("\(mainCount) saved version\(mainCount == 1 ? "" : "s")\(fam.branchCount > 0 ? " · \(fam.branchCount) branch\(fam.branchCount == 1 ? "" : "es") (Save As / Duplicate)" : "") · \(line.name)")
+                .font(.caption).foregroundStyle(.secondary).lineLimit(2)
         }
     }
 
@@ -352,25 +366,92 @@ struct VersionPanel: View {
     }
 }
 
-// MARK: - One-line summary for the info card
+// MARK: - Preview panel card
 
+/// A small card under the file info: is history on, which version this is,
+/// when it was saved, and the way in (History…). Plain words, no jargon.
 struct VersionInfoRow: View {
     let url: URL
     @ObservedObject private var store = VersionStore.shared
 
     var body: some View {
-        if let (fam, li) = store.family(for: url) {
-            HStack(alignment: .top, spacing: 4) {
-                Text("Version:").font(.caption).foregroundStyle(.secondary).frame(width: 52, alignment: .leading)
-                Text("\(fam.lines[li].current?.label ?? "–") · \(fam.main.versions.count) main · \(fam.branchCount) branch\(fam.branchCount == 1 ? "" : "es")")
-                    .font(.caption)
-                Spacer(minLength: 4)
-                Button("History…") { VersionHistoryWindowManager.shared.open(url) }
-                    .buttonStyle(.link).font(.caption)
+        if let s = store.suggestion(for: url) {
+            card(symbol: "arrow.triangle.branch", tint: .purple,
+                 title: "Copy of \(s.baseName)?",
+                 detail: "It looks like a Save As of \(s.baseLabel). Open History to keep it as a branch, or separate.",
+                 button: "Review…")
+        } else if let (fam, li) = store.family(for: url), let cur = fam.lines[li].current {
+            let saves = fam.lines[li].versions.count
+            let branches = fam.branchCount
+            if saves <= 1 && branches == 0 && fam.lines[li].base == nil {
+                card(symbol: "clock.arrow.circlepath", tint: .accentColor,
+                     title: "Version history is on",
+                     detail: "Saved \(VersionPanel.when(cur.date).lowercased()). From now on every save is kept — you can go back to any of them.",
+                     button: "History…")
+            } else {
+                card(symbol: "clock.arrow.circlepath", tint: .accentColor,
+                     title: "Version \(cur.label)",
+                     detail: "\(saves) saved version\(saves == 1 ? "" : "s")\(branches > 0 ? " · \(branches) branch\(branches == 1 ? "" : "es")" : "") · last saved \(VersionPanel.when(cur.date).lowercased())",
+                     button: "History…")
             }
-        } else if store.suggestion(for: url) != nil {
-            Button("New version of another file? — Review…") { VersionHistoryWindowManager.shared.open(url) }
-                .buttonStyle(.link).font(.caption)
+        }
+    }
+
+    private func card(symbol: String, tint: Color, title: String, detail: String, button: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Divider().opacity(0.6)
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: symbol).foregroundStyle(tint).frame(width: 16)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.system(size: 11, weight: .semibold))
+                    Text(detail).font(.caption).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                Button(button) { VersionHistoryWindowManager.shared.open(url) }
+                    .controlSize(.small)
+            }
+        }
+    }
+}
+
+// MARK: - How it works (shown until dismissed)
+
+struct VersionGuide: View {
+    @AppStorage("ffVersionsGuideSeen") private var seen = false
+    @State private var open = false
+
+    var body: some View {
+        if !seen || open {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("How version history works", systemImage: "info.circle")
+                    .font(.callout.weight(.semibold))
+                step("1", "Save as usual (⌘S). Each save becomes the next version — v2, v3, v4.")
+                step("2", "Save As or Duplicate makes a branch: a copy of v3 becomes v3.1, and its saves v3.2, v3.3.")
+                step("3", "Click a version to Preview, Restore, Duplicate or Compare it. Restore keeps what you have now as a version too, so nothing is lost.")
+                HStack {
+                    Spacer()
+                    Button(seen ? "Hide" : "Got it") { seen = true; open = false }
+                        .controlSize(.small)
+                }
+            }
+            .padding(10)
+            .background(Color.accentColor.opacity(0.07), in: RoundedRectangle(cornerRadius: 8))
+        } else {
+            Button { open = true } label: { Label("How it works", systemImage: "info.circle") }
+                .buttonStyle(.link)
+                .font(.caption)
+        }
+    }
+
+    private func step(_ n: String, _ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(n)
+                .font(.system(size: 10, weight: .bold, design: .rounded))
+                .frame(width: 16, height: 16)
+                .background(Circle().fill(Color.accentColor.opacity(0.18)))
+                .foregroundStyle(Color.accentColor)
+            Text(text).font(.caption).fixedSize(horizontal: false, vertical: true)
         }
     }
 }

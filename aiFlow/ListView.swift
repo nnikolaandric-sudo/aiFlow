@@ -991,7 +991,7 @@ struct GroupedRowContainer: View {
         // `contextMenu(forSelectionType:)` on the List — a menu built per row
         // filtered the whole folder once per row on every render.
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(item.name), \(item.kind), \(GitService.shared.status(for: item.url)?.state.label ?? "clean")")
+        .accessibilityLabel("\(item.name), \(item.kind), \(GitService.shared.badgeStatus(for: item.url)?.state.label ?? "clean")")
     }
 
     private var renameField: some View {
@@ -1067,7 +1067,7 @@ struct GroupedRow: View {
         // instancira svih N redova po kliku, a body se izvršava samo za
         // vidljive/preslikane (isto kao driveBadge iznad).
         let wsBadge = WorkspaceStore.shared.badge(for: item.url)
-        let gitStatus = git.status(for: item.url)
+        let gitStatus = git.badgeStatus(for: item.url)
         return HStack(spacing: 8) {
             FileIconView(item: item, size: compact ? 14 : 16)
                 .frame(width: compact ? 20 : 24, height: compact ? 20 : 24)

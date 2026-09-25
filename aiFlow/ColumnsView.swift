@@ -128,7 +128,7 @@ struct ColumnsView: View {
                             if let wsBadge = WorkspaceStore.shared.badge(for: item.url) {
                                 WorkspaceBadgeView(badge: wsBadge)
                             }
-                            GitBadgeView(status: git.status(for: item.url), size: 9)
+                            GitBadgeView(status: git.badgeStatus(for: item.url), size: 9)
                             TagDotsView(colors: item.tagColors, size: 9)
                         }
                         // Lokacija umjesto pune apsolutne putanje: u rezultatima
@@ -1196,7 +1196,7 @@ struct ColumnRow: View {
     var body: some View {
         let isHighlighted = highlight.url == item.url
         let wsBadge = WorkspaceStore.shared.badge(for: item.url)
-        let gitStatus = GitService.shared.status(for: item.url)
+        let gitStatus = GitService.shared.badgeStatus(for: item.url)
         return HStack(spacing: 8) {
             FileIconView(item: item, size: 16)
                 .frame(width: 20, height: 20)

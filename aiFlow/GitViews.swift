@@ -18,8 +18,11 @@ struct GitBadgeView: View {
     var body: some View {
         if let st = status {
             HStack(spacing: 3) {
-                Text(st.state.rawValue)
-                    .font(.system(size: size, weight: .bold, design: .monospaced))
+                // "New" instead of Git's "?" — a question mark next to a file
+                // reads like an error, not "Git doesn't track this yet".
+                Text(st.state == .untracked ? "New" : st.state.rawValue)
+                    .font(.system(size: st.state == .untracked ? size - 1 : size, weight: .bold,
+                                  design: st.state == .untracked ? .rounded : .monospaced))
                     .foregroundStyle(st.state.color)
                     .frame(minWidth: 12)
                     .help("\(st.state.label)\(st.staged ? " • staged" : "")\(st.unstaged ? " • unstaged" : "")")

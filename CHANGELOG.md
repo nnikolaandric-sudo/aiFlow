@@ -5,6 +5,53 @@ relative to the 1.0 release.
 
 ---
 
+## 2.4.1 (2026-09-25)
+
+Faster again: Version History stops slowing the app down, the stray "?" marks
+are gone, and version history is easier to use.
+
+### No more "?" next to documents; clearer Version History
+
+- **The grey "?" is gone.** It was Git's "untracked" mark: a folder that
+  happens to be a Git repository (for example `~/Documents` after a `git init`)
+  put it next to every document in it. File lists now show Git marks only for
+  real changes (M, A, D, R, conflicts), and an untracked file's preview is the
+  normal preview — no empty Diff / History / Repo tabs. The Git panel lists
+  untracked files as **New** instead of "?".
+- **Faster lists in big repositories:** Git badges come from one table built
+  per refresh instead of scanning every status for each folder row (34,000
+  statuses in the case that showed it).
+- **Version badges only where there is history** (`v2`, `v3.1`…) — not `v1` on
+  every file of a tracked folder.
+- **Version History explains itself:** the preview shows a small card —
+  "Version history is on · saved …" or "Version v4 · 4 saved versions · last
+  saved …" with *History…*; the history window opens with a three-step "How
+  version history works" (dismiss with *Got it*, back via *How it works*), and
+  the version before the current one is already selected, so Preview ·
+  Restore · Duplicate · Compare are right there.
+
+### Version History no longer slows the app down
+
+- **The cause:** when many files appeared at once in a tracked folder (a Git
+  checkout or a build in a code project, an unzip, a copied folder), every
+  new file was compared with every document of the same type — including a
+  Spotlight lookup per document. In a 1,200-file JavaScript workspace, 400 new
+  files took **218 s of background work (58 s CPU)**, slowing aiFlow and the
+  Mac.
+- **Folders under Git aren't versioned** (Git already keeps their history);
+  histories recorded there by 2.3/2.4 are removed at launch.
+- **Many new files in one go** (more than 20 within the 2-second settle
+  window) only get the cheap same-bytes check — content comparison is for the
+  single Save As it's meant for. At most 8 comparisons per new file, one
+  Spotlight lookup (for the best match), and only files actually worked on
+  lately count as candidates.
+- The versions queue runs at background priority, so its disk and CPU work
+  always yields to the UI.
+- Measured: 400 new files **218 s → 0.5 s** in a plain folder, **0.04 s** in a
+  Git project; a Save As is still recognized as v3.1 in 0.04 s.
+
+---
+
 ## 2.4.0 (2026-09-25)
 
 Drag and drop everywhere, safer drops, and a steadier browser.

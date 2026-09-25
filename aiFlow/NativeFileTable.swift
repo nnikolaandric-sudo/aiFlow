@@ -670,7 +670,7 @@ final class FFNameCell: NSTableCellView {
                 tips.append("Version \(v) — right-click ▸ Version History")
             }
         }
-        if let g = GitService.shared.status(for: item.url) {
+        if let g = GitService.shared.badgeStatus(for: item.url) {
             if full.length > 0 { full.append(NSAttributedString(string: " ")) }
             full.append(NSAttributedString(
                 string: g.state.rawValue,

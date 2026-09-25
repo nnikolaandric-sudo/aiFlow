@@ -143,10 +143,17 @@ final class VersionStore: ObservableObject {
     private var lineByPath: [String: (family: String, line: String)] = [:]
 
     // Queue-owned state
-    private let queue = DispatchQueue(label: "FinderFlow.versions", qos: .utility)
+    /// .background: CPU and disk I/O are throttled behind everything the user does.
+    private let queue = DispatchQueue(label: "FinderFlow.versions", qos: .background)
     private var work = VersionIndex()
     private var roots: [String] = []
     private var pending = Set<String>()
+    /// Folder → "is the root of a Git work tree" (Git already versions
+    /// those). Cleared every batch, so a new repo is noticed.
+    private var gitRoots: [String: Bool] = [:]
+    /// More new files than this in one settle window is a bulk operation
+    /// (checkout, build, unzip, copy of a folder) — not someone's Save As.
+    static let bulkNewFiles = 20
     private var flushItem: DispatchWorkItem?
     private var saveItem: DispatchWorkItem?
     private var watcher: VersionWatcher?
@@ -176,7 +183,7 @@ final class VersionStore: ObservableObject {
         guard !started else { return }
         started = true
         // Version labels ride along the workspace badges in every file list.
-        WorkspaceStore.versionLabelProvider = { [weak self] url in self?.label(for: url) }
+        WorkspaceStore.versionLabelProvider = { [weak self] url in self?.badgeLabel(for: url) }
         WorkspaceStore.shared.$workspaces
             .map { $0.map(\.rootPath) }
             .removeDuplicates()
@@ -239,6 +246,13 @@ final class VersionStore: ObservableObject {
     /// both spellings, see `keys(for:)`), no realpath per row.
     func label(for url: URL) -> String? {
         labelByPath[url.path] ?? labelByPath[url.standardizedFileURL.path]
+    }
+
+    /// The list badge: only when there is history to go back to — "v1" on
+    /// every file of a tracked folder would say nothing.
+    func badgeLabel(for url: URL) -> String? {
+        guard let l = label(for: url), l != "v1" else { return nil }
+        return l
     }
 
     /// Foundation's standardized paths drop "/private" when the file exists
@@ -313,7 +327,7 @@ final class VersionStore: ObservableObject {
     func captureNow(_ url: URL, completion: ((String?) -> Void)? = nil) {
         queue.async { [weak self] in
             guard let self else { return }
-            let label = self.captureLocked(Self.canonical(url.path), detectForks: true)
+            let label = self.captureLocked(Self.canonical(url.path), forks: .full)
             self.commitLocked()
             DispatchQueue.main.async { completion?(label) }
         }
@@ -401,7 +415,7 @@ final class VersionStore: ObservableObject {
 
     func processSync(_ paths: [String]) {
         queue.sync {
-            for p in paths { handleLocked(Self.canonical(p)) }
+            handleBatchLocked(paths.map { Self.canonical($0) })
             commitLocked(flush: true)
         }
         publishNow()
@@ -412,6 +426,12 @@ final class VersionStore: ObservableObject {
             scanLocked(root: Self.canonical(root.path), baseline: baseline)
             commitLocked(flush: true)
         }
+        publishNow()
+    }
+
+    /// Tests: the launch catch-up (drops Git histories, captures changes).
+    func catchUpSync() {
+        queue.sync { catchUpLocked() }
         publishNow()
     }
 
@@ -450,26 +470,42 @@ final class VersionStore: ObservableObject {
         let batch = pending
         pending.removeAll()
         var retry: [String] = []
+        var ready: [String] = []
         for p in batch.sorted() {
             let path = Self.canonical(p)
             // Still being written: try again shortly.
             if let m = Self.stat(path)?.mtime, Date().timeIntervalSince(m) < 1.0 { retry.append(p); continue }
-            handleLocked(path)
+            ready.append(path)
         }
+        handleBatchLocked(ready)
         commitLocked()
         if !retry.isEmpty { enqueue(retry) }
+    }
+
+    /// One settle window of changes. Many new files at once (checkout,
+    /// build, unzip) only get the cheap same-bytes check; content
+    /// comparison is for the one-file Save As it's meant for.
+    private func handleBatchLocked(_ paths: [String]) {
+        // Per batch: a repo can appear (git init / clone) at any time.
+        gitRoots.removeAll()
+        let tracked = Set(work.families.flatMap { $0.lines.map(\.path) })
+        let newFiles = paths.filter { !tracked.contains($0) && (Self.stat($0)?.isRegular ?? false) }.count
+        let check: ForkCheck = newFiles > Self.bulkNewFiles ? .exact : .full
+        for p in paths { handleLocked(p, forks: check) }
     }
 
     /// Changes made while aiFlow wasn't running: tracked files whose size or
     /// date moved get a new version; files that disappeared are marked.
     private func catchUpLocked() {
+        gitRoots.removeAll()
+        dropGitLinesLocked()
         for fi in work.families.indices {
             for li in work.families[fi].lines.indices {
                 let line = work.families[fi].lines[li]
                 guard inRootsLocked(line.path) else { continue }
                 if let st = Self.stat(line.path) {
                     if let cur = line.current, st.size == cur.size, st.mtime == cur.date { continue }
-                    _ = captureLocked(line.path, detectForks: false)
+                    _ = captureLocked(line.path, forks: .none)
                 } else if line.missingSince == nil {
                     work.families[fi].lines[li].missingSince = Date()
                 }
@@ -485,8 +521,48 @@ final class VersionStore: ObservableObject {
         roots.contains { path == $0 || path.hasPrefix($0 + "/") }
     }
 
-    private func handleLocked(_ path: String) {
+    enum ForkCheck { case none, exact, full }
+
+    /// Inside a Git work tree? (walks up to the tracked root, cached)
+    private func insideGitLocked(_ path: String) -> Bool {
+        var dir = (path as NSString).deletingLastPathComponent
+        while dir.count > 1 {
+            if let known = gitRoots[dir] {
+                if known { return true }
+            } else {
+                let isRepo = FileManager.default.fileExists(atPath: dir + "/.git")
+                gitRoots[dir] = isRepo
+                if isRepo { return true }
+            }
+            if roots.contains(dir) { break }
+            dir = (dir as NSString).deletingLastPathComponent
+        }
+        return false
+    }
+
+    /// Histories recorded inside Git repos by earlier builds go away (Git
+    /// has them; they only cost space and work).
+    private func dropGitLinesLocked() {
+        var dropped: [String] = []
+        for fi in work.families.indices.reversed() {
+            for li in work.families[fi].lines.indices.reversed() where insideGitLocked(work.families[fi].lines[li].path) {
+                dropped += work.families[fi].lines[li].versions.compactMap(\.blob)
+                work.families[fi].lines.remove(at: li)
+            }
+            if work.families[fi].lines.isEmpty { work.families.remove(at: fi) }
+            else if work.families[fi].lines[0].base != nil { work.families[fi].lines[0].base = nil }
+        }
+        if !dropped.isEmpty {
+            work.suggestions.removeAll { insideGitLocked($0.newPath) }
+            deleteUnreferencedLocked(dropped)
+        }
+    }
+
+    private func handleLocked(_ path: String, forks: ForkCheck = .full) {
         guard work.enabled, inRootsLocked(path) else { return }
+        // Git already keeps the history of code; versioning it too was the
+        // slowdown (thousands of files per checkout or build).
+        if insideGitLocked(path) || FileManager.default.fileExists(atPath: path + "/.git") { return }
         if Self.stat(path) == nil {
             // Gone: keep the history, mark the line (a rename shows up as a
             // new path with the same content and moves the line there).
@@ -515,12 +591,12 @@ final class VersionStore: ObservableObject {
             }
             return
         }
-        _ = captureLocked(path, detectForks: true)
+        _ = captureLocked(path, forks: forks)
     }
 
     /// Records the file's current content. Returns the version label.
     @discardableResult
-    private func captureLocked(_ path: String, detectForks: Bool) -> String? {
+    private func captureLocked(_ path: String, forks: ForkCheck) -> String? {
         guard let st = Self.stat(path), st.isRegular, st.size <= Self.maxFileBytes,
               VersionRules.isEligible(path) else { return nil }
         guard let snap = snapshotLocked(path) else { return nil }
@@ -554,7 +630,7 @@ final class VersionStore: ObservableObject {
         }
 
         let blob = storeBlobLocked(snap, ext: (path as NSString).pathExtension)
-        if detectForks, let fork = forkCandidateLocked(path: path, snap: snap, size: st.size) {
+        if forks != .none, let fork = forkCandidateLocked(path: path, snap: snap, size: st.size, similar: forks == .full) {
             let parentName = work.families[fork.family].lines[fork.line].name
             if fork.confident {
                 let fam = work.families[fork.family]
@@ -598,7 +674,7 @@ final class VersionStore: ObservableObject {
     struct ForkMatch { var family: Int; var line: Int; var base: String; var score: Double; var confident: Bool }
 
     /// Is the new file a copy / Save As of a tracked document?
-    private func forkCandidateLocked(path: String, snap: Snapshot, size: Int64) -> ForkMatch? {
+    private func forkCandidateLocked(path: String, snap: Snapshot, size: Int64, similar: Bool) -> ForkMatch? {
         // 1. Same bytes as any stored version (Duplicate, Finder copy).
         for (fi, fam) in work.families.enumerated() {
             for (li, line) in fam.lines.enumerated() {
@@ -607,33 +683,42 @@ final class VersionStore: ObservableObject {
                 }
             }
         }
-        // 2. Similar content: same extension, comparable size, recent work.
+        guard similar else { return nil }
+        // 2. Similar content: same extension, comparable size, worked on
+        // lately. "Lately" = the file's own modification date, or a save we
+        // saw — not the first-sight capture (that made every file "recent").
         let ext = (path as NSString).pathExtension.lowercased()
         let now = Date()
-        var best: ForkMatch?
-        var candidates: [(fi: Int, li: Int, v: DocVersion, recent: Bool, when: Date)] = []
+        var candidates: [(fi: Int, li: Int, v: DocVersion, when: Date)] = []
         for (fi, fam) in work.families.enumerated() {
             for (li, line) in fam.lines.enumerated() where line.path != path {
                 guard (line.path as NSString).pathExtension.lowercased() == ext,
                       let cur = line.current, cur.blob != nil else { continue }
                 let ratio = Double(size) / Double(max(cur.size, 1))
                 guard ratio > 0.5, ratio < 2.0 else { continue }
-                let lastUsed = Self.lastUsed(line.path)
-                let active = [cur.capturedAt, cur.date, lastUsed ?? .distantPast].max()!
+                let active = max(cur.date, line.versions.count > 1 ? cur.capturedAt : .distantPast)
                 guard now.timeIntervalSince(active) < 30 * 86_400 else { continue }
-                candidates.append((fi, li, cur, now.timeIntervalSince(active) < 2 * 3_600, active))
+                candidates.append((fi, li, cur, active))
             }
         }
         candidates.sort { $0.when > $1.when }
-        for c in candidates.prefix(20) {
+        var best: (match: ForkMatch, when: Date)?
+        for c in candidates.prefix(8) {
             guard let blob = c.v.blob else { continue }
             let score = VersionSimilarity.score(snap.temp, blobsDir.appendingPathComponent(blob))
             guard score >= 0.6 else { continue }
-            let m = ForkMatch(family: c.fi, line: c.li, base: c.v.label, score: score,
-                              confident: score >= 0.85 && c.recent)
-            if best == nil || m.score > best!.score { best = m }
+            if best == nil || score > best!.match.score {
+                best = (ForkMatch(family: c.fi, line: c.li, base: c.v.label, score: score, confident: false), c.when)
+            }
         }
-        return best
+        guard var m = best?.match, let when = best?.when else { return nil }
+        // Worked on in the last 2 hours? One Spotlight lookup, for the winner
+        // only (Word can Save As without saving the original).
+        let path0 = work.families[m.family].lines[m.line].path
+        let recent = now.timeIntervalSince(when) < 2 * 3_600
+            || (Self.lastUsed(path0).map { now.timeIntervalSince($0) < 2 * 3_600 } ?? false)
+        m.confident = m.score >= 0.85 && recent
+        return m
     }
 
     /// Turns a file's own history (from an unsure fork) into a branch.
@@ -670,7 +755,7 @@ final class VersionStore: ObservableObject {
         }
         let path = work.families[fi].lines[li].path
         // Whatever is in the file now is saved before it's replaced.
-        if Self.stat(path) != nil { _ = captureLocked(path, detectForks: false) }
+        if Self.stat(path) != nil { _ = captureLocked(path, forks: .none) }
         let target = URL(fileURLWithPath: path)
         try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
         let temp = target.deletingLastPathComponent()
@@ -727,13 +812,18 @@ final class VersionStore: ObservableObject {
         guard work.enabled else { return }
         let rootURL = URL(fileURLWithPath: root, isDirectory: true)
         let keys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey, .isPackageKey, .fileSizeKey]
+        if FileManager.default.fileExists(atPath: root + "/.git") || insideGitLocked(root + "/x") {
+            if baseline, !work.scannedRoots.contains(root) { work.scannedRoots.append(root) }
+            return
+        }
         guard let en = FileManager.default.enumerator(at: rootURL, includingPropertiesForKeys: keys,
                                                       options: [.skipsHiddenFiles, .skipsPackageDescendants]) else { return }
         var seen = 0
         for case let url as URL in en {
             guard let v = try? url.resourceValues(forKeys: Set(keys)) else { continue }
             if v.isDirectory == true {
-                if VersionRules.ignoredDirs.contains(url.lastPathComponent) || v.isPackage == true { en.skipDescendants() }
+                if VersionRules.ignoredDirs.contains(url.lastPathComponent) || v.isPackage == true
+                    || FileManager.default.fileExists(atPath: url.path + "/.git") { en.skipDescendants() }
                 continue
             }
             guard v.isRegularFile == true else { continue }
@@ -741,10 +831,11 @@ final class VersionStore: ObservableObject {
             if seen > 20_000 { break }
             let path = Self.canonical(url.path)
             if baseline {
-                if lineIndexLocked(path: path) == nil { _ = captureLocked(path, detectForks: false) }
+                if lineIndexLocked(path: path) == nil { _ = captureLocked(path, forks: .none) }
             } else if lineIndexLocked(path: path) == nil {
-                // Appeared while aiFlow was closed: exact copies still branch.
-                _ = captureLocked(path, detectForks: true)
+                // Appeared while aiFlow was closed / with a new folder: exact
+                // copies still branch, no content comparison for a whole folder.
+                _ = captureLocked(path, forks: .exact)
             }
         }
         if baseline, !work.scannedRoots.contains(root) { work.scannedRoots.append(root) }
@@ -1106,7 +1197,7 @@ enum VersionSimilarity {
         defer { try? h.close() }
         var out = Set<Int>()
         var read = 0
-        while read < 32 << 20, let chunk = try? h.read(upToCount: 4096), !chunk.isEmpty {
+        while read < 8 << 20, let chunk = try? h.read(upToCount: 4096), !chunk.isEmpty {
             out.insert(chunk.hashValue)
             read += chunk.count
         }

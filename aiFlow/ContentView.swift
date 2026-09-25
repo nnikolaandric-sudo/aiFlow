@@ -2450,7 +2450,9 @@ struct FilePreviewPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             if let item {
-                if let root = git.repoRoot(for: item.url) {
+                // Git tabs only for what Git tracks — an untracked document
+                // (a folder like ~/Documents can be a repo) gets its preview.
+                if let root = git.repoRoot(for: item.url), !git.isUntracked(item.url) {
                     gitFileBody(item: item, root: root)
                 } else {
                     workspaceBody(for: item)

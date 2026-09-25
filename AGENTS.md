@@ -161,6 +161,11 @@ onoga što korisnik eksplicitno odobri.
 - Fork za .docx/.xlsx/.pptx: porede se samo sadržajni dijelovi (document.xml,
   slides, sheets) raspakovani preko Compression (raw DEFLATE), 3-gram riječi;
   šablonski dijelovi (styles/theme) bi inače spojili nepovezane dokumente.
+- Performanse (2026-09-25, bio je uzrok usporenja): Git work tree-ovi se ne
+  verzionišu; >20 novih fajlova u jednom settle prozoru = bulk → samo SHA
+  provjera; najviše 8 poređenja po fajlu i JEDAN `MDItem` (lastUsed) za
+  najboljeg kandidata — nikad Spotlight po kandidatu; queue je `.background`.
+  Benchmark: 400 novih fajlova u 1.200-fajl projektu mora ostati < 1 s.
 - Testovi/harness: `FF_VERSIONS_DIR=<privremeni folder>`, `processSync` /
   `scanSync` / `setRootsSync`, `VersionStore.capBytes` se smije spustiti u
   testu. Nikad ne diraj korisnikov `Application Support/FinderFlow/Versions/`.
