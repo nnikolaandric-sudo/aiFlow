@@ -75,6 +75,11 @@ struct BrowserTabBar: View {
     var onClose: (BrowserTab) -> Void = { _ in }
     var onCloseOthers: (BrowserTab) -> Void = { _ in }
     var onDuplicate: (BrowserTab) -> Void = { _ in }
+    /// Drop support: fajlovi se mogu spustiti na tab da se premjeste/
+    /// kopiraju u njegov folder (ista Finder semantika kao sidebar).
+    /// Optional da stari call site-ovi ostanu kompajlirani.
+    var fileOps: FileOperationsService? = nil
+    var onReload: (() -> Void)? = nil
 
     var body: some View {
         HStack(spacing: 6) {
@@ -88,7 +93,9 @@ struct BrowserTabBar: View {
                             onSelect: { onSelect(tab) },
                             onClose: { onClose(tab) },
                             onCloseOthers: { onCloseOthers(tab) },
-                            onDuplicate: { onDuplicate(tab) }
+                            onDuplicate: { onDuplicate(tab) },
+                            fileOps: fileOps,
+                            onReload: onReload
                         )
                     }
                 }
@@ -122,11 +129,63 @@ private struct BrowserTabChip: View {
     var onClose: () -> Void = {}
     var onCloseOthers: () -> Void = {}
     var onDuplicate: () -> Void = {}
+    /// Drop support (vidi BrowserTabBar): kad su postavljeni, tab je i
+    /// drop target — fajlovi se spustaju u njegov folder.
+    var fileOps: FileOperationsService? = nil
+    var onReload: (() -> Void)? = nil
 
     @State private var isHovering = false
+    @State private var isTargeted = false
+    @State private var dropIsCopy = false
+    @State private var dropIsForbidden = false
+    @State private var dropSources: [URL] = []
+    @State private var springWork: DispatchWorkItem?
+
+    private var canDrop: Bool { fileOps != nil && onReload != nil }
 
     var body: some View {
-        HStack(spacing: 5) {
+        chipContent
+            .contentShape(FFTheme.controlShape)
+            .onTapGesture { onSelect() }
+            .onHover { isHovering = $0 }
+            // Drag-out: tab je proxy svog foldera (kao sidebar/breadcrumb) —
+            // povuci tab u Finder ili u drugi pane za copy/move.
+            .fileDragOutURLs([tab.path])
+            .contextMenu {
+                Button("Duplicate Tab") { onDuplicate() }
+                Divider()
+                Button("Close Tab", role: .destructive) { onClose() }
+                    .disabled(!canClose)
+                Button("Close Other Tabs") { onCloseOthers() }
+                    .disabled(!canClose)
+                Divider()
+                Button("Copy Path") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(tab.path.path, forType: .string)
+                    NotificationCenter.default.post(name: .ffCopyPathFeedback, object: nil)
+                }
+                Button("Reveal in Finder") {
+                    FinderReveal.reveal(path: tab.path.path)
+                }
+            }
+            .help("\(tab.path.path) — ⌘T novi tab, ⇧⌘W zatvori · prevuci fajlove ovde za premještanje")
+            .onChange(of: isTargeted) { _, targeted in
+                springWork?.cancel()
+                springWork = nil
+                // Spring-open kao folderi: zadrzi hover 0.8 s i tab se
+                // aktivira usred draga pa drop moze i dublje.
+                if targeted, !isActive {
+                    let select = onSelect
+                    let work = DispatchWorkItem { select() }
+                    springWork = work
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: work)
+                }
+            }
+    }
+
+    @ViewBuilder
+    private var chipContent: some View {
+        let label = HStack(spacing: 5) {
             URLIconView(url: tab.path, isDirectory: true, isPackage: false, size: 14)
                 .frame(width: 18, height: 18)
 
@@ -160,26 +219,106 @@ private struct BrowserTabChip: View {
             FFTheme.controlShape
                 .strokeBorder(Color.accentColor.opacity(isActive ? 0.35 : 0), lineWidth: 1)
         )
-        .contentShape(FFTheme.controlShape)
-        .onTapGesture { onSelect() }
-        .onHover { isHovering = $0 }
-        .contextMenu {
-            Button("Duplicate Tab") { onDuplicate() }
-            Divider()
-            Button("Close Tab", role: .destructive) { onClose() }
-                .disabled(!canClose)
-            Button("Close Other Tabs") { onCloseOthers() }
-                .disabled(!canClose)
-            Divider()
-            Button("Copy Path") {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(tab.path.path, forType: .string)
-                NotificationCenter.default.post(name: .ffCopyPathFeedback, object: nil)
-            }
-            Button("Reveal in Finder") {
-                FinderReveal.reveal(path: tab.path.path)
-            }
+        if canDrop, let fileOps, let onReload {
+            DropHighlight(isTargeted: isTargeted, isCopy: dropIsCopy,
+                          isForbidden: dropIsForbidden) { label }
+                .onDrop(of: [.fileURL, .text],
+                        delegate: TabDropDelegate(destination: tab.path,
+                                                  fileOps: fileOps,
+                                                  onReload: onReload,
+                                                  isTargeted: $isTargeted,
+                                                  dropIsCopy: $dropIsCopy,
+                                                  dropIsForbidden: $dropIsForbidden,
+                                                  sources: $dropSources))
+        } else {
+            label
         }
-        .help("\(tab.path.path) — ⌘T novi tab, ⇧⌘W zatvori")
+    }
+}
+
+/// Struct delegate (vidi RowDropDelegate): zero cost dok drag ne hoveruje.
+/// Ista Finder semantika — isti volumen → move, drugi → copy, Option → copy.
+private struct TabDropDelegate: DropDelegate {
+    let destination: URL
+    let fileOps: FileOperationsService
+    let onReload: () -> Void
+    @Binding var isTargeted: Bool
+    @Binding var dropIsCopy: Bool
+    @Binding var dropIsForbidden: Bool
+    @Binding var sources: [URL]
+
+    func validateDrop(info: DropInfo) -> Bool {
+        FileDropSupport.carriesFiles(info.itemProviders(for: [.fileURL, .text]))
+    }
+
+    func dropEntered(info: DropInfo) {
+        isTargeted = true
+        sources = []
+        dropIsForbidden = false
+        dropIsCopy = NSEvent.modifierFlags.contains(.option)
+        FileDropSupport.hoverCursor(valid: true)
+        let dest = destination
+        FileDropSupport.urls(from: info.itemProviders(for: [.fileURL, .text])) { urls in
+            guard !urls.isEmpty else { return }
+            sources = urls
+            dropIsForbidden = FileDropSupport.isForbidden(sources: urls, destination: dest)
+            dropIsCopy = !FileDropSupport.shouldMove(sources: urls, destination: dest)
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        if !sources.isEmpty && FileDropSupport.isForbidden(sources: sources, destination: destination) {
+            dropIsForbidden = true
+            return DropProposal(operation: .forbidden)
+        }
+        dropIsForbidden = false
+        let copy: Bool
+        if sources.isEmpty {
+            copy = NSEvent.modifierFlags.contains(.option)
+        } else {
+            copy = !FileDropSupport.shouldMove(sources: sources, destination: destination)
+        }
+        dropIsCopy = copy
+        return DropProposal(operation: copy ? .copy : .move)
+    }
+
+    func dropExited(info: DropInfo) {
+        isTargeted = false
+        dropIsForbidden = false
+        sources = []
+        FileDropSupport.hoverCursor(valid: false)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        isTargeted = false
+        dropIsForbidden = false
+        FileDropSupport.hoverCursor(valid: false)
+        let dest = destination
+        let ops = fileOps
+        let reload = onReload
+        if !sources.isEmpty {
+            let urls = sources
+            sources = []
+            guard !FileDropSupport.isForbidden(sources: urls, destination: dest) else {
+                NSSound.beep()
+                return false
+            }
+            ops.importURLs(urls, to: dest,
+                           shouldMove: FileDropSupport.shouldMove(sources: urls, destination: dest),
+                           reload: reload)
+            return true
+        }
+        sources = []
+        FileDropSupport.urls(from: info.itemProviders(for: [.fileURL, .text])) { urls in
+            guard !urls.isEmpty else { NSSound.beep(); return }
+            guard !FileDropSupport.isForbidden(sources: urls, destination: dest) else {
+                NSSound.beep()
+                return
+            }
+            ops.importURLs(urls, to: dest,
+                           shouldMove: FileDropSupport.shouldMove(sources: urls, destination: dest),
+                           reload: reload)
+        }
+        return true
     }
 }

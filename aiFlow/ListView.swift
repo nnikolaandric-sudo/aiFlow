@@ -1119,6 +1119,7 @@ struct GroupedRow: View {
         .padding(.vertical, compact ? 1 : 2)
         .padding(.horizontal, 6)
         .contentShape(Rectangle())
+        .help(item.url.path)
         .background(
             FFTheme.controlShape
                 .fill(prominence != .increased && hovering ? Color.primary.opacity(0.05) : Color.clear)

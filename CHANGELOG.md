@@ -5,6 +5,41 @@ relative to the 1.0 release.
 
 ---
 
+## 2.4.0 (2026-09-25)
+
+Drag and drop everywhere, safer drops, and a steadier browser.
+
+### Drag and drop
+
+- **Drop files on a browser tab** to move or copy them into that tab's
+  folder (same Finder rules as the sidebar: same volume → move, other volume
+  or Option → copy). Hold a drag over a tab for 0.8 s and it opens, so the
+  drop can go deeper — like spring-loaded folders.
+- **Drag a tab out** — it stands for its folder: drop it into Finder,
+  another pane, a tab or the sidebar to copy or move the folder.
+- **The preview panel takes part:** rows of a folder's contents (plain
+  folders, workspace subfolders, the workspace overview, the column-view
+  preview) drag out, and dropping on a folder row or the list background
+  moves/copies into that folder; the header drags the shown folder.
+- **Forbidden drops say so:** a folder onto itself or into its own
+  subfolder, or into a folder you can't write to, turns the target red with
+  a "can't" pill and a beep, and nothing happens. Dropping an item onto
+  itself is a silent no-op.
+
+### Browsing
+
+- **Column view search:** results show where each file is instead of the
+  same long absolute path on every row; double-click opens a result, a
+  single click only selects it (a stray click no longer leaves the search).
+- Switching List / Icons / Columns keeps the selected file in the preview.
+- The title-bar search field shrinks (down to 140 pt) on narrow windows
+  instead of pushing the path bar and toolbar out.
+- The path bar scrolls to the current folder on deep paths.
+- The URL type is named "aiFlow URL" (the `finderflow://` scheme is
+  unchanged, so existing links keep working).
+
+---
+
 ## 2.3.0 (2026-09-25)
 
 Version History for every document (v1…v4, branches v3.1), and a Today

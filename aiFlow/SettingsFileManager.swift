@@ -2,7 +2,7 @@ import SwiftUI
 
 // MARK: - Default file manager
 
-/// "Open folders in FinderFlow" toggle + status, plus the can/can't-do notes
+/// "Open folders in aiFlow" toggle + status, plus the can/can't-do notes
 /// folded into a DisclosureGroup so they don't occupy permanent space.
 struct DefaultFileManagerSettingsSection: View {
     @State private var isDefault = DefaultFolderHandler.isDefault

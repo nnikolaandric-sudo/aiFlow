@@ -408,14 +408,13 @@ class FileOperationsService: NSObject, ObservableObject {
             destDir = destDir.deletingLastPathComponent()
         }
         let destPath = destDir.resolvingSymlinksInPath().path
-        // Dropping an item onto itself: silent no-op (no error sheet for a mis-drop).
         let candidates = filtered.filter {
             $0.resolvingSymlinksInPath().path != destPath
         }
         guard !candidates.isEmpty else { return }
-        // Moving/copying a folder into its own descendant would recurse forever.
         if let loop = candidates.first(where: {
-            destPath.hasPrefix($0.resolvingSymlinksInPath().path + "/")
+            let sourcePath = $0.resolvingSymlinksInPath().path
+            return $0.hasDirectoryPath && FileDropSupport.isSameOrDescendant(destPath, of: sourcePath)
         }) {
             let verb = shouldMove ? "move" : "copy"
             DispatchQueue.main.async { self.errorMessage = "Can't \(verb) “\(loop.lastPathComponent)” into itself." }

@@ -146,18 +146,21 @@ enum FileDropSupport {
         (valid ? NSCursor.pointingHand : NSCursor.arrow).set()
     }
 
+    static func isSameOrDescendant(_ path: String, of directory: String) -> Bool {
+        if path == directory { return true }
+        guard directory != "/" else { return path != "/" }
+        return path.hasPrefix(directory + "/")
+    }
+
     /// True when the drop would create a loop (folder into its own descendant)
     /// or when the destination is not writable. Used for `.forbidden` proposals.
     static func isForbidden(sources: [URL], destination: URL) -> Bool {
         let destPath = destination.resolvingSymlinksInPath().path
-        // Folder into itself or its own descendant → infinite recursion.
-        for src in sources where src.hasDirectoryPath {
-            if destPath == src.resolvingSymlinksInPath().path ||
-               destPath.hasPrefix(src.resolvingSymlinksInPath().path + "/") {
-                return true
-            }
+        for src in sources {
+            let sourcePath = src.resolvingSymlinksInPath().path
+            if sourcePath == destPath { return true }
+            if src.hasDirectoryPath && isSameOrDescendant(destPath, of: sourcePath) { return true }
         }
-        // Read-only volume / no write permission.
         if !FileManager.default.isWritableFile(atPath: destPath) { return true }
         return false
     }
@@ -176,6 +179,7 @@ enum FileDropSupport {
 final class FolderDropState: ObservableObject, DropDelegate {
     @Published var isTargeted = false
     @Published var dropIsCopy = false
+    @Published var dropIsForbidden = false
 
     var destination: URL
     var fileOps: FileOperationsService
@@ -209,23 +213,24 @@ final class FolderDropState: ObservableObject, DropDelegate {
         isTargeted = true
         resolvedSources = []
         dropIsCopy = NSEvent.modifierFlags.contains(.option)
+        dropIsForbidden = false
         FileDropSupport.hoverCursor(valid: true)
-        // Refine copy-vs-move once real URLs resolve (volume check).
         let dest = destination
         FileDropSupport.urls(from: info.itemProviders(for: [.fileURL, .text])) { urls in
             guard gen == self.generation, !urls.isEmpty else { return }
             self.resolvedSources = urls
             self.dropIsCopy = !FileDropSupport.shouldMove(sources: urls, destination: dest)
+            self.dropIsForbidden = FileDropSupport.isForbidden(sources: urls, destination: dest)
         }
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        // Forbidden: folder into itself / not writable.
         if !resolvedSources.isEmpty &&
            FileDropSupport.isForbidden(sources: resolvedSources, destination: destination) {
+            dropIsForbidden = true
             return DropProposal(operation: .forbidden)
         }
-        // Refresh the live indicator as Option is pressed/released mid-drag.
+        dropIsForbidden = false
         let copy: Bool
         if resolvedSources.isEmpty {
             copy = NSEvent.modifierFlags.contains(.option)
@@ -240,21 +245,25 @@ final class FolderDropState: ObservableObject, DropDelegate {
         generation &+= 1
         resolvedSources = []
         isTargeted = false
+        dropIsForbidden = false
         FileDropSupport.hoverCursor(valid: false)
     }
 
     func performDrop(info: DropInfo) -> Bool {
         generation &+= 1
         isTargeted = false
+        dropIsForbidden = false
         FileDropSupport.hoverCursor(valid: false)
         let dest = destination
         let ops = fileOps
         let reload = onReload
-        // Modifiers are read live at drop time, so an Option pressed at the
-        // last moment still forces a copy.
         if !resolvedSources.isEmpty {
             let sources = resolvedSources
             resolvedSources = []
+            guard !FileDropSupport.isForbidden(sources: sources, destination: dest) else {
+                NSSound.beep()
+                return false
+            }
             ops.importURLs(sources, to: dest,
                            shouldMove: FileDropSupport.shouldMove(sources: sources, destination: dest),
                            reload: reload)
@@ -263,6 +272,10 @@ final class FolderDropState: ObservableObject, DropDelegate {
         resolvedSources = []
         FileDropSupport.urls(from: info.itemProviders(for: [.fileURL, .text])) { urls in
             guard !urls.isEmpty else { NSSound.beep(); return }
+            guard !FileDropSupport.isForbidden(sources: urls, destination: dest) else {
+                NSSound.beep()
+                return
+            }
             ops.importURLs(urls, to: dest,
                            shouldMove: FileDropSupport.shouldMove(sources: urls, destination: dest),
                            reload: reload)
@@ -395,6 +408,10 @@ private struct RowDropDelegate: DropDelegate {
         if !sources.isEmpty {
             let urls = sources
             sources = []
+            guard !FileDropSupport.isForbidden(sources: urls, destination: dest) else {
+                NSSound.beep()
+                return false
+            }
             ops.importURLs(urls, to: dest,
                            shouldMove: FileDropSupport.shouldMove(sources: urls, destination: dest),
                            reload: reload)
@@ -403,6 +420,10 @@ private struct RowDropDelegate: DropDelegate {
         sources = []
         FileDropSupport.urls(from: info.itemProviders(for: [.fileURL, .text])) { urls in
             guard !urls.isEmpty else { NSSound.beep(); return }
+            guard !FileDropSupport.isForbidden(sources: urls, destination: dest) else {
+                NSSound.beep()
+                return
+            }
             ops.importURLs(urls, to: dest,
                            shouldMove: FileDropSupport.shouldMove(sources: urls, destination: dest),
                            reload: reload)
@@ -445,9 +466,10 @@ struct DropCatcher<Content: View>: View {
             .overlay {
                 if drop.isTargeted {
                     FFTheme.cardShape
-                        .strokeBorder(Color.accentColor, lineWidth: 2)
+                        .strokeBorder(drop.dropIsForbidden ? Color.red : Color.accentColor, lineWidth: 2)
                         .background(FFTheme.cardShape
-                            .fill(Color.accentColor.opacity(0.06)))
+                            .fill((drop.dropIsForbidden ? Color.red : Color.accentColor)
+                                .opacity(0.06)))
                         .padding(4)
                         .allowsHitTesting(false)
                         .transition(.opacity)
@@ -455,7 +477,9 @@ struct DropCatcher<Content: View>: View {
             }
             .overlay(alignment: .top) {
                 if drop.isTargeted {
-                    DropActionPill(isCopy: drop.dropIsCopy, folderName: folderName)
+                    DropActionPill(isCopy: drop.dropIsCopy,
+                                   isForbidden: drop.dropIsForbidden,
+                                   folderName: folderName)
                         .padding(.top, 8)
                         .transition(.move(edge: .top).combined(with: .opacity))
                 }
@@ -508,13 +532,16 @@ struct DropHighlight<Content: View>: View {
 /// Floating "Copy to X" / "Move to X" pill for background drops.
 struct DropActionPill: View {
     let isCopy: Bool
+    var isForbidden: Bool = false
     let folderName: String
 
     var body: some View {
         HStack(spacing: 6) {
-            Image(systemName: isCopy ? "plus.circle.fill" : "arrow.right.circle.fill")
-                .foregroundStyle(Color.accentColor)
-            Text(isCopy ? "Copy to “\(folderName)”" : "Move to “\(folderName)”")
+            Image(systemName: isForbidden ? "xmark.circle.fill"
+                  : (isCopy ? "plus.circle.fill" : "arrow.right.circle.fill"))
+                .foregroundStyle(isForbidden ? Color.red : Color.accentColor)
+            Text(isForbidden ? "Can’t drop here"
+                  : (isCopy ? "Copy to “\(folderName)”" : "Move to “\(folderName)”"))
                 .font(.system(size: 12, weight: .medium))
         }
         .padding(.horizontal, 12)

@@ -343,6 +343,12 @@ struct FolderContentsPreview: View {
     var onOpenFile: (FileItem) -> Void = { _ in }
     var onEnterFolder: (URL) -> Void = { _ in }
     var onRevealInMain: (() -> Void)? = nil
+    /// Drag & drop: kad su postavljeni, redovi se mogu povlaciti van
+    /// (u drugi pane/Finder), a spustanje na folder-red ili pozadinu
+    /// premjesta/kopira u taj folder — ista Finder semantika kao svuda.
+    /// Optional da stari call site-ovi ostanu kompajlirani.
+    var fileOps: FileOperationsService? = nil
+    var onDropReload: (() -> Void)? = nil
 
     @State private var children: [FileItem]? = nil
     @State private var loadError: FolderReadError? = nil
@@ -360,6 +366,19 @@ struct FolderContentsPreview: View {
     }
 
     var body: some View {
+        if let ops = fileOps, let reload = onDropReload {
+            DropCatcher(destination: item.url,
+                        folderName: item.name,
+                        fileOps: ops,
+                        onReload: { handleDropReload(parentReload: reload) }) {
+                previewBody
+            }
+        } else {
+            previewBody
+        }
+    }
+
+    private var previewBody: some View {
         VStack(spacing: 0) {
             header
             Divider().opacity(0.6)
@@ -371,6 +390,17 @@ struct FolderContentsPreview: View {
         .onDisappear { loadTask?.cancel() }
         .onChange(of: item.id) { _, _ in resetAndLoad() }
         .onChange(of: showHidden) { _, _ in resetAndLoad() }
+    }
+
+    /// Posle dropa: osvjezi i ovaj preview i roditelja (glavni/column pane).
+    private func handleDropReload(parentReload: @escaping () -> Void) {
+        resetAndLoad()
+        parentReload()
+    }
+
+    private func rowDropReload() {
+        resetAndLoad()
+        onDropReload?()
     }
 
     private var header: some View {
@@ -406,6 +436,10 @@ struct FolderContentsPreview: View {
             Spacer()
         }
         .padding(12)
+        // Header je proxy prikazanog foldera: povuci ga u drugi pane,
+        // tab, sidebar ili Finder za copy/move (kao breadcrumb).
+        .fileDragOutURLs([item.url])
+        .help("Drag to move/copy “\(item.name)” elsewhere — drop files here to move them in")
     }
 
     @ViewBuilder
@@ -458,7 +492,7 @@ struct FolderContentsPreview: View {
 
     private func row(for child: FileItem) -> some View {
         let isSelected = innerSelection == child.url
-        return HStack(spacing: 8) {
+        let label = HStack(spacing: 8) {
             FileIconView(item: child, size: 16)
                 .frame(width: 20, height: 20)
             Text(child.name)
@@ -485,6 +519,8 @@ struct FolderContentsPreview: View {
             FFTheme.controlShape
                 .strokeBorder(Color.accentColor.opacity(isSelected ? 0.30 : 0), lineWidth: 1)
         )
+        // Drag-out: povuci red u drugi pane/tab/sidebar/Finder.
+        .fileDragOutURLs([child.url])
         .onTapGesture {
             innerSelection = child.url
             guard (NSApp.currentEvent?.clickCount ?? 1) >= 2 else { return }
@@ -492,6 +528,17 @@ struct FolderContentsPreview: View {
             else { onOpenFile(child) }
         }
         .help(child.url.path)
+        // Drop na folder-red: premjesti/kopira u subfolder (spring-open
+        // ulazi dublje). Bez fileOps je samo labela.
+        if let ops = fileOps, child.isBrowsableFolder {
+            return AnyView(FolderDropRow(item: child, fileOps: ops,
+                                         onReload: { rowDropReload() },
+                                         onSpringOpen: { onEnterFolder($0.url) }) {
+                label
+            })
+        } else {
+            return AnyView(label)
+        }
     }
 
     private func resetAndLoad() {

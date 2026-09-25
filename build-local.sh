@@ -21,8 +21,8 @@ APP_NAME="FinderFlow"          # Swift module (internal, unchanged: archived cla
 BUNDLE_NAME="aiFlow"           # what Finder, the Dock and Spotlight show
 EXEC_NAME="aiFlow"             # process name in Activity Monitor / Force Quit
 BUNDLE_ID="com.finderflow.app"
-VERSION="2.3.0"
-BUILD_NUM="12"
+VERSION="2.4.0"
+BUILD_NUM="13"
 DEPLOYMENT_TARGET="14.0"
 CONFIG="Debug"
 RUN_APP=1
@@ -108,14 +108,14 @@ plist = {
     'CFBundleName': 'aiFlow',
     'CFBundleDisplayName': 'aiFlow',
     'CFBundlePackageType': 'APPL',
-    'CFBundleShortVersionString': '2.3.0',
-    'CFBundleVersion': '12',
+    'CFBundleShortVersionString': '2.4.0',
+    'CFBundleVersion': '13',
     'LSMinimumSystemVersion': '14.0',
     'NSHumanReadableCopyright': 'Copyright © 2024 aiFlow. All rights reserved.',
     'NSPrincipalClass': 'NSApplication',
     'NSAppleEventsUsageDescription': 'aiFlow attaches files to your open Mail compose window when you press ⌥⌘A.',
     'CFBundleURLTypes': [
-        {'CFBundleURLName': 'FinderFlow URL',
+        {'CFBundleURLName': 'aiFlow URL',
          'CFBundleURLSchemes': ['finderflow']},
     ],
     'CFBundleDocumentTypes': [

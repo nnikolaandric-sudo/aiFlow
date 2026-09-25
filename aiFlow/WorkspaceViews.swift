@@ -110,6 +110,8 @@ struct WorkspaceOverviewView: View {
     let rootURL: URL
     var onRevealFile: (URL) -> Void = { _ in }
     var onEnterFolder: (URL) -> Void = { _ in }
+    var fileOps: FileOperationsService? = nil
+    var onReload: (() -> Void)? = nil
     @ObservedObject var store = WorkspaceStore.shared
 
     @State private var tab: WsTab = .overview
@@ -140,30 +142,34 @@ struct WorkspaceOverviewView: View {
             return AnyView(Text("Workspace not found.")
                 .font(.caption).foregroundStyle(.secondary).padding())
         }
-        return AnyView(
-            VStack(spacing: 0) {
-                header(ws)
-                Picker("", selection: $tab) {
-                    ForEach(WsTab.allCases) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                Divider().opacity(0.6)
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
-                        switch tab {
-                        case .overview: overviewBody(ws)
-                        case .tasks:
-                            WorkspaceTasksView(workspaceID: ws.id, rootURL: rootURL,
-                                               onRevealFile: onRevealFile)
-                        case .activity: activityBody(ws)
-                        }
-                    }
-                    .padding(10)
-                }
+        let content = VStack(spacing: 0) {
+            header(ws)
+            Picker("", selection: $tab) {
+                ForEach(WsTab.allCases) { Text($0.rawValue).tag($0) }
             }
-        )
+            .pickerStyle(.segmented)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            Divider().opacity(0.6)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    switch tab {
+                    case .overview: overviewBody(ws)
+                    case .tasks:
+                        WorkspaceTasksView(workspaceID: ws.id, rootURL: rootURL,
+                                           onRevealFile: onRevealFile)
+                    case .activity: activityBody(ws)
+                    }
+                }
+                .padding(10)
+            }
+        }
+        if let ops = fileOps, let reload = onReload {
+            return AnyView(DropCatcher(destination: rootURL, folderName: rootURL.lastPathComponent,
+                                        fileOps: ops, onReload: reload,
+                                        content: { content }))
+        }
+        return AnyView(content)
     }
 
     // MARK: Header
@@ -1281,6 +1287,8 @@ struct WorkspaceFilePanel: View {
     let fileURL: URL
     let relative: String
     var onRevealFile: (URL) -> Void = { _ in }
+    var fileOps: FileOperationsService? = nil
+    var onReload: (() -> Void)? = nil
     @ObservedObject var store = WorkspaceStore.shared
     @State private var tab: WsFileTab = .details
     @State private var showTaskSheet = false
@@ -1291,56 +1299,63 @@ struct WorkspaceFilePanel: View {
 
     var body: some View {
         guard ws != nil else { return AnyView(EmptyView()) }
-        return AnyView(
-            VStack(spacing: 0) {
-                // One row instead of an action bar stacked on a tab bar (§5+§12):
-                // the tabs ARE the one-click actions, "+" adds a task anywhere.
-                HStack(spacing: 2) {
-                    ForEach(WsFileTab.allCases) { t in
-                        WsTabButton(label: t.rawValue, selected: tab == t) { tab = t }
-                    }
-                    Spacer(minLength: 2)
-                    Button {
-                        showTaskSheet = true
-                    } label: {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 15))
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    .buttonStyle(.plain)
-                    .help("Add task for this file")
-                    .padding(.trailing, 2)
+        let content = VStack(spacing: 0) {
+            // One row instead of an action bar stacked on a tab bar (§5+§12):
+            // the tabs ARE the one-click actions, "+" adds a task anywhere.
+            HStack(spacing: 2) {
+                ForEach(WsFileTab.allCases) { t in
+                    WsTabButton(label: t.rawValue, selected: tab == t) { tab = t }
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                Divider().opacity(0.6)
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 10) {
-                        switch tab {
-                        case .details:
-                            WsFileDetailsTab(workspaceID: workspaceID, rootURL: rootURL,
-                                             fileURL: fileURL, relative: relative)
-                        case .tasks:
-                            WorkspaceTasksView(workspaceID: workspaceID, rootURL: rootURL,
-                                               fileRelative: relative, onRevealFile: onRevealFile)
-                        case .review:
-                            WsFileReviewTab(workspaceID: workspaceID, relative: relative)
-                        case .share:
-                            WsFileShareTab(fileURL: fileURL)
-                        case .relations:
-                            WsFileRelationsTab(workspaceID: workspaceID, rootURL: rootURL,
-                                               relative: relative, onRevealFile: onRevealFile)
-                        case .versions:
-                            VersionPanel(url: fileURL)
-                        }
-                    }
-                    .padding(10)
+                Spacer(minLength: 2)
+                Button {
+                    showTaskSheet = true
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(Color.accentColor)
                 }
+                .buttonStyle(.plain)
+                .help("Add task for this file")
+                .padding(.trailing, 2)
             }
-            .sheet(isPresented: $showTaskSheet) {
-                TaskEditSheet(workspaceID: workspaceID, rootURL: rootURL, linkedFile: relative)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            Divider().opacity(0.6)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
+                    switch tab {
+                    case .details:
+                        WsFileDetailsTab(workspaceID: workspaceID, rootURL: rootURL,
+                                         fileURL: fileURL, relative: relative)
+                    case .tasks:
+                        WorkspaceTasksView(workspaceID: workspaceID, rootURL: rootURL,
+                                           fileRelative: relative, onRevealFile: onRevealFile)
+                    case .review:
+                        WsFileReviewTab(workspaceID: workspaceID, relative: relative)
+                    case .share:
+                        WsFileShareTab(fileURL: fileURL)
+                    case .relations:
+                        WsFileRelationsTab(workspaceID: workspaceID, rootURL: rootURL,
+                                           relative: relative, onRevealFile: onRevealFile)
+                    case .versions:
+                        WsFileRelationsTab(workspaceID: workspaceID, rootURL: rootURL,
+                                           relative: relative, onRevealFile: onRevealFile)
+                    }
+                }
+                .padding(10)
             }
-        )
+        }
+        .fileDragOutURLs([fileURL])
+        .sheet(isPresented: $showTaskSheet) {
+            TaskEditSheet(workspaceID: workspaceID, rootURL: rootURL, linkedFile: relative)
+        }
+        if let ops = fileOps, let reload = onReload {
+            return AnyView(DropCatcher(destination: fileURL.deletingLastPathComponent(),
+                                        folderName: fileURL.deletingLastPathComponent().lastPathComponent,
+                                        fileOps: ops, onReload: reload,
+                                        content: { content }))
+        }
+        return AnyView(content)
     }
 }
 

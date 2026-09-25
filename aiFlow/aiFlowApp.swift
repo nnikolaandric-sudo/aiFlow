@@ -106,9 +106,9 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
 
     // MARK: - Open folders / finderflow:// links
 
-    /// Handles both file URLs (folder/file opened with FinderFlow, e.g. "Open With",
+    /// Handles both file URLs (folder/file opened with aiFlow, e.g. "Open With",
     /// `open -a`, or being the default folder handler) and the custom `finderflow://`
-    /// scheme posted by the Finder Sync extension's "Open in FinderFlow" item.
+    /// scheme posted by the Finder Sync extension's "Open in aiFlow" item.
     func application(_ application: NSApplication, open urls: [URL]) {
         for url in urls { handleOpen(url) }
     }

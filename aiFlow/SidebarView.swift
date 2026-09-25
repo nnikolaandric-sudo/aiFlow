@@ -623,17 +623,20 @@ private struct SidebarDropWrapper<Content: View>: View {
 
     @State private var isTargeted = false
     @State private var dropIsCopy = false
+    @State private var dropIsForbidden = false
     @State private var dropSources: [URL] = []
     @State private var springWork: DispatchWorkItem?
 
     var body: some View {
-        DropHighlight(isTargeted: isTargeted, isCopy: dropIsCopy, content: content)
+        DropHighlight(isTargeted: isTargeted, isCopy: dropIsCopy,
+                      isForbidden: dropIsForbidden, content: content)
             .onDrop(of: [.fileURL, .text],
                     delegate: SidebarRowDropDelegate(destination: destination,
                                                      fileOps: fileOps,
                                                      onReload: onReload,
                                                      isTargeted: $isTargeted,
                                                      dropIsCopy: $dropIsCopy,
+                                                     dropIsForbidden: $dropIsForbidden,
                                                      sources: $dropSources))
             .onChange(of: isTargeted) { _, targeted in
                 springWork?.cancel()
@@ -657,6 +660,7 @@ private struct SidebarRowDropDelegate: DropDelegate {
     let onReload: () -> Void
     @Binding var isTargeted: Bool
     @Binding var dropIsCopy: Bool
+    @Binding var dropIsForbidden: Bool
     @Binding var sources: [URL]
 
     func validateDrop(info: DropInfo) -> Bool {
@@ -666,17 +670,24 @@ private struct SidebarRowDropDelegate: DropDelegate {
     func dropEntered(info: DropInfo) {
         isTargeted = true
         sources = []
+        dropIsForbidden = false
         dropIsCopy = NSEvent.modifierFlags.contains(.option)
         FileDropSupport.hoverCursor(valid: true)
         let dest = destination
         FileDropSupport.urls(from: info.itemProviders(for: [.fileURL, .text])) { urls in
             guard !urls.isEmpty else { return }
             sources = urls
+            dropIsForbidden = FileDropSupport.isForbidden(sources: urls, destination: dest)
             dropIsCopy = !FileDropSupport.shouldMove(sources: urls, destination: dest)
         }
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
+        if !sources.isEmpty && FileDropSupport.isForbidden(sources: sources, destination: destination) {
+            dropIsForbidden = true
+            return DropProposal(operation: .forbidden)
+        }
+        dropIsForbidden = false
         let copy: Bool
         if sources.isEmpty {
             copy = NSEvent.modifierFlags.contains(.option)
@@ -689,18 +700,31 @@ private struct SidebarRowDropDelegate: DropDelegate {
 
     func dropExited(info: DropInfo) {
         isTargeted = false
+        dropIsForbidden = false
         sources = []
         FileDropSupport.hoverCursor(valid: false)
     }
 
     func performDrop(info: DropInfo) -> Bool {
         isTargeted = false
+        dropIsForbidden = false
         FileDropSupport.hoverCursor(valid: false)
         let dest = destination
         let ops = fileOps
         let reload = onReload
+        if !sources.isEmpty {
+            let urls = sources
+            sources = []
+            guard !FileDropSupport.isForbidden(sources: urls, destination: dest) else { NSSound.beep(); return false }
+            ops.importURLs(urls, to: dest,
+                           shouldMove: FileDropSupport.shouldMove(sources: urls, destination: dest),
+                           reload: reload)
+            return true
+        }
+        sources = []
         FileDropSupport.urls(from: info.itemProviders(for: [.fileURL, .text])) { urls in
             guard !urls.isEmpty else { NSSound.beep(); return }
+            guard !FileDropSupport.isForbidden(sources: urls, destination: dest) else { NSSound.beep(); return }
             ops.importURLs(urls, to: dest,
                            shouldMove: FileDropSupport.shouldMove(sources: urls, destination: dest),
                            reload: reload)

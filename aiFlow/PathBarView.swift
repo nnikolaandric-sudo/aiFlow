@@ -72,27 +72,44 @@ struct PathBarView: View {
     }
 
     private var breadcrumbs: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 4) {
-                ForEach(pathComponents, id: \.path) { component in
-                    BreadcrumbDropWrapper(component: component,
-                                          isCurrent: component == currentPath,
-                                          fileOps: fileOps,
-                                          onReload: onReload,
-                                          onNavigate: { currentPath = component })
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    ForEach(pathComponents, id: \.path) { component in
+                        BreadcrumbDropWrapper(component: component,
+                                              isCurrent: component == currentPath,
+                                              fileOps: fileOps,
+                                              onReload: onReload,
+                                              onNavigate: { currentPath = component })
+                            .id(component.path)
 
-                    if component != pathComponents.last {
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.secondary)
+                        if component != pathComponents.last {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .help("Double-click to edit path (⌘L)")
+            .onTapGesture(count: 2) {
+                startEditing()
+            }
+            .onAppear {
+                // Duboke putanje (nivo1...nivo6) su otvarale skrol na korenu —
+                // skroluj na tekuci folder da se vidi gdje si.
+                if let last = pathComponents.last {
+                    proxy.scrollTo(last.path, anchor: .trailing)
+                }
+            }
+            .onChange(of: currentPath) {
+                if let last = pathComponents.last {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        proxy.scrollTo(last.path, anchor: .trailing)
                     }
                 }
             }
-            .padding(.vertical, 2)
-        }
-        .help("Double-click to edit path (⌘L)")
-        .onTapGesture(count: 2) {
-            startEditing()
         }
     }
 

@@ -113,55 +113,61 @@ struct ColumnsView: View {
 
     private var searchResultsList: some View {
         List(searchResults) { item in
-            HStack(spacing: 8) {
-                FileIconView(item: item, size: 16)
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 4) {
-                        Text(item.name)
-                            .font(.system(size: 12))
-                            .lineLimit(1)
-                        if let wsBadge = WorkspaceStore.shared.badge(for: item.url) {
-                            WorkspaceBadgeView(badge: wsBadge)
-                        }
-                        GitBadgeView(status: git.status(for: item.url), size: 9)
-                        TagDotsView(colors: item.tagColors, size: 9)
-                    }
-                    // Lokacija umjesto pune apsolutne putanje: u rezultatima
-                    // je svaki red pokazivao isti dugi „/private/tmp/…" tekst.
-                    if let place = ffSearchLocation(of: item.url, relativeTo: currentPath) {
+            FolderDropRow(item: item, fileOps: fileOps,
+                          onReload: {
+                              NotificationCenter.default.post(name: .refreshDirectory, object: currentPath)
+                          },
+                          onSpringOpen: { currentPath = $0.url }) {
+                HStack(spacing: 8) {
+                    FileIconView(item: item, size: 16)
+                    VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 4) {
-                            Image(systemName: "folder")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.tertiary)
-                            Text(place)
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
+                            Text(item.name)
+                                .font(.system(size: 12))
                                 .lineLimit(1)
-                                .truncationMode(.head)
+                            if let wsBadge = WorkspaceStore.shared.badge(for: item.url) {
+                                WorkspaceBadgeView(badge: wsBadge)
+                            }
+                            GitBadgeView(status: git.status(for: item.url), size: 9)
+                            TagDotsView(colors: item.tagColors, size: 9)
                         }
-                        .help(item.url.deletingLastPathComponent().path)
+                        // Lokacija umjesto pune apsolutne putanje: u rezultatima
+                        // je svaki red pokazivao isti dugi „/private/tmp/…" tekst.
+                        if let place = ffSearchLocation(of: item.url, relativeTo: currentPath) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "folder")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.tertiary)
+                                Text(place)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                                    .truncationMode(.head)
+                            }
+                            .help(item.url.deletingLastPathComponent().path)
+                        }
+                    }
+                    Spacer()
+                    if item.isBrowsableFolder {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
                 }
-                Spacer()
-                if item.isBrowsableFolder {
-                    Image(systemName: "chevron.right")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.vertical, 2)
-            .contentShape(Rectangle())
-            .fileDragOut(item: item, files: searchResults, selectedIDs: [item.id])
-            // Double-click opens/navigates (single click only selects) —
-            // a single stray click used to eject you from the search context.
-            .onTapGesture {
-                selectedIDs?.wrappedValue = [item.id]
-                guard (NSApp.currentEvent?.clickCount ?? 1) >= 2 else { return }
-                if item.isBrowsableFolder {
-                    currentPath = item.url
-                } else {
-                    selectedFileURL = item.url
-                    onOpen(item.url)
+                .padding(.vertical, 2)
+                .contentShape(Rectangle())
+                .fileDragOut(item: item, files: searchResults, selectedIDs: [item.id])
+                // Double-click opens/navigates (single click only selects) —
+                // a single stray click used to eject you from the search context.
+                .onTapGesture {
+                    selectedIDs?.wrappedValue = [item.id]
+                    guard (NSApp.currentEvent?.clickCount ?? 1) >= 2 else { return }
+                    if item.isBrowsableFolder {
+                        currentPath = item.url
+                    } else {
+                        selectedFileURL = item.url
+                        onOpen(item.url)
+                    }
                 }
             }
             .contextMenu {
@@ -217,7 +223,11 @@ struct ColumnsView: View {
                                           showHidden: showHidden,
                                           onOpenFile: { onOpen($0.url) },
                                           onEnterFolder: { currentPath = $0 },
-                                          onRevealFile: { revealColumnFile($0) })
+                                          onRevealFile: { revealColumnFile($0) },
+                                          fileOps: fileOps,
+                                          onReload: {
+                                              NotificationCenter.default.post(name: .refreshDirectory, object: currentPath)
+                                          })
                             .frame(width: previewWidth)
                             .id("preview")
                     }
@@ -366,7 +376,20 @@ struct ColumnsView: View {
     }
 
     private func buildColumns() {
-        selectedFileURL = nil
+        // Prelaz iz List/Icons sa selekcijom je brisao preview (nil pa nikad
+        // restore jer onChange ne okine na istu vrijednost) — sacuvaj pa vrati
+        // ako selekcija i dalje pripada tekucem folderu.
+        let preserved: URL? = {
+            if let url = selectedFileURL,
+               ffSamePath(url.deletingLastPathComponent(), currentPath) { return url }
+            if let ids = selectedIDs?.wrappedValue, ids.count == 1, let path = ids.first {
+                let url = URL(fileURLWithPath: path)
+                if ffSamePath(url.deletingLastPathComponent(), currentPath),
+                   !FileItem.isBrowsableFolder(url) { return url }
+            }
+            return nil
+        }()
+        selectedFileURL = preserved
         guard showColumnTree else {
             // Default: show only the current folder, no ancestor tree
             columns = [currentPath]
@@ -394,6 +417,11 @@ struct ColumnPreviewPane: View {
     var onEnterFolder: (URL) -> Void = { _ in }
     /// Selects a file in the column browser (workspace relation jumps, §10).
     var onRevealFile: (URL) -> Void = { _ in }
+    /// Drag & drop u preview koloni: redovi se povlace van, drop na
+    /// foldere/pocinje premjesta — isto kao glavni preview panel.
+    /// Optional da stari call site-ovi ostanu kompajlirani.
+    var fileOps: FileOperationsService? = nil
+    var onReload: (() -> Void)? = nil
     @ObservedObject var workspaces: WorkspaceStore = .shared
     @ObservedObject var git: GitService = .shared
     @State private var item: FileItem?
@@ -419,7 +447,9 @@ struct ColumnPreviewPane: View {
                     // Workspace root → whole-project overview (§3).
                     WorkspaceOverviewView(workspaceID: ws.id, rootURL: item.url,
                                           onRevealFile: onRevealFile,
-                                          onEnterFolder: onEnterFolder)
+                                          onEnterFolder: onEnterFolder,
+                                          fileOps: fileOps,
+                                          onReload: onReload)
                 } else if let found = workspaces.enclosingWorkspace(for: item.url) {
                     if item.isBrowsableFolder {
                         WorkspaceSubfolderBanner(workspaceID: found.workspace.id, rootURL: found.root) {
@@ -430,7 +460,9 @@ struct ColumnPreviewPane: View {
                             showHidden: showHidden,
                             onOpenFile: onOpenFile,
                             onEnterFolder: onEnterFolder,
-                            onRevealInMain: { onEnterFolder(item.url) }
+                            onRevealInMain: { onEnterFolder(item.url) },
+                            fileOps: fileOps,
+                            onDropReload: onReload
                         )
                     } else if let rel = workspaces.relativePath(of: item.url, to: found.root) {
                         workspaceFilePreview(item: item, ws: found.workspace,
@@ -444,7 +476,9 @@ struct ColumnPreviewPane: View {
                         showHidden: showHidden,
                         onOpenFile: onOpenFile,
                         onEnterFolder: onEnterFolder,
-                        onRevealInMain: { onEnterFolder(item.url) }
+                        onRevealInMain: { onEnterFolder(item.url) },
+                        fileOps: fileOps,
+                        onDropReload: onReload
                     )
                     Divider().opacity(0.6)
                     Button("Enable Workspace") {
@@ -530,7 +564,9 @@ struct ColumnPreviewPane: View {
         Divider().opacity(0.6)
         WorkspaceFilePanel(workspaceID: ws.id, rootURL: root,
                            fileURL: item.url, relative: relative,
-                           onRevealFile: onRevealFile)
+                           onRevealFile: onRevealFile,
+                           fileOps: fileOps,
+                           onReload: onReload)
     }
 
     /// Original non-workspace file preview, kept as-is.
@@ -555,6 +591,8 @@ struct ColumnPreviewPane: View {
                             TagDotsView(colors: item.tagColors, size: 9)
                         }
                     }
+                    .fileDragOutURLs([item.url])
+                    .help("Drag to move/copy “\(item.name)” into another pane, tab or folder")
                     Divider().opacity(0.6)
                     FFKindRow(item: item)
                     FFSizeRow(item: item, size: item.displaySize(sizingActive: sizingActive))
@@ -827,6 +865,12 @@ struct ColumnPane: View {
                     Text("Loading…").font(.caption).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if items.isEmpty {
+                // Prazan folder u kolonama je bio prazna bela traka bez poruke —
+                // isti EmptyFolderView kao list/icons, kompaktan za usku kolonu.
+                EmptyFolderView(folderName: directory.lastPathComponent,
+                                isSearching: false,
+                                onCreateFolder: nil, onCreateFile: nil)
             } else {
                 VStack(spacing: 0) {
                     if let err = loadError {
@@ -1176,6 +1220,7 @@ struct ColumnRow: View {
         .padding(.vertical, compact ? 2 : 3)
         .padding(.horizontal, 8)
         .contentShape(Rectangle())
+        .help(item.url.path)
         .background(
             FFTheme.controlShape
                 .fill(isHighlighted ? Color.accentColor.opacity(0.16)

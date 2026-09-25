@@ -297,7 +297,9 @@ struct ContentView: View {
                         onNewTab: { newTab() },
                         onClose: { closeTab($0.id) },
                         onCloseOthers: { closeOtherTabs(keeping: $0.id) },
-                        onDuplicate: { duplicateTab($0.id) }
+                        onDuplicate: { duplicateTab($0.id) },
+                        fileOps: fileOps,
+                        onReload: reload
                     )
                     .resetsCursorOnEnter()
                 }
@@ -401,7 +403,9 @@ struct ContentView: View {
             ToolbarItem(placement: .primaryAction) {
                 SearchScopeView(currentPath: currentPath, searchEngine: searchEngine,
                                 localResultCount: localSearchFiles.count, hidesChrome: true)
-                    .frame(width: 260)
+                    // Fiksnih 260pt je klipalo search na min-width (640pt) prozoru —
+                    // dozvoli sužavanje do 140pt da path + toolbar stanu.
+                    .frame(minWidth: 140, idealWidth: 200, maxWidth: 260)
             }
         }
         .background(QLResponderSetup())
@@ -439,7 +443,7 @@ struct ContentView: View {
                     showFirstRun = true
                 }
             }
-            // Cold launch via "Open in FinderFlow" / default folder handler:
+            // Cold launch via "Open in aiFlow" / default folder handler:
             // the open request may arrive before this view is listening.
             if let pending = AppDelegate.pendingNavigationURL {
                 AppDelegate.pendingNavigationURL = nil
@@ -2457,7 +2461,9 @@ struct FilePreviewPanel: View {
                 // Nothing selected, but the current folder is a workspace.
                 WorkspaceOverviewView(workspaceID: ws.id, rootURL: folder,
                                       onRevealFile: onRevealFile,
-                                      onEnterFolder: onEnterFolder)
+                                      onEnterFolder: onEnterFolder,
+                                      fileOps: fileOps,
+                                      onReload: onReload)
             } else if let folder = currentFolder,
                       let root = git.repoRoot(for: folder) {
                 // Ništa selektovano, ali je folder Git repo — repo panel
@@ -2537,7 +2543,9 @@ struct FilePreviewPanel: View {
             // Workspace root selected → whole-project overview (§3).
             WorkspaceOverviewView(workspaceID: ws.id, rootURL: item.url,
                                   onRevealFile: onRevealFile,
-                                  onEnterFolder: onEnterFolder)
+                                  onEnterFolder: onEnterFolder,
+                                  fileOps: fileOps,
+                                  onReload: onReload)
         } else if let found = workspaces.enclosingWorkspace(for: item.url) {
             if item.isBrowsableFolder {
                 // Subfolder inside a workspace: compact banner + plain list.
@@ -2549,7 +2557,9 @@ struct FilePreviewPanel: View {
                     showHidden: showHidden,
                     onOpenFile: onOpenFile,
                     onEnterFolder: onEnterFolder,
-                    onRevealInMain: { onEnterFolder(item.url) }
+                    onRevealInMain: { onEnterFolder(item.url) },
+                    fileOps: fileOps,
+                    onDropReload: onReload
                 )
             } else if let rel = workspaces.relativePath(of: item.url, to: found.root) {
                 // File inside a workspace → preview + work tabs (§5).
@@ -2564,7 +2574,9 @@ struct FilePreviewPanel: View {
                 showHidden: showHidden,
                 onOpenFile: onOpenFile,
                 onEnterFolder: onEnterFolder,
-                onRevealInMain: { onEnterFolder(item.url) }
+                onRevealInMain: { onEnterFolder(item.url) },
+                fileOps: fileOps,
+                onDropReload: onReload
             )
             Divider().opacity(0.6)
             EnableWorkspacePrompt(folder: item.url)
@@ -2595,7 +2607,9 @@ struct FilePreviewPanel: View {
         Divider().opacity(0.6)
         WorkspaceFilePanel(workspaceID: ws.id, rootURL: root,
                            fileURL: item.url, relative: relative,
-                           onRevealFile: onRevealFile)
+                           onRevealFile: onRevealFile,
+                           fileOps: fileOps,
+                           onReload: onReload)
     }
 
     // MARK: - Legacy (non-workspace) preview
@@ -2613,7 +2627,9 @@ struct FilePreviewPanel: View {
                 showHidden: showHidden,
                 onOpenFile: onOpenFile,
                 onEnterFolder: onEnterFolder,
-                onRevealInMain: { onEnterFolder(item.url) }
+                onRevealInMain: { onEnterFolder(item.url) },
+                fileOps: fileOps,
+                onDropReload: onReload
             )
         } else if item.isArchive {
                     // Archives: contents listing + one-click extract.
@@ -2649,6 +2665,8 @@ struct FilePreviewPanel: View {
                                 TagDotsView(colors: item.tagColors, size: 9)
                             }
                         }
+                        .fileDragOutURLs([item.url])
+                        .help("Drag to move/copy “\(item.name)” into another pane, tab or folder")
                         Divider().opacity(0.6)
                         FFKindRow(item: item)
                         if !item.isDirectory { FFSizeRow(item: item, size: item.formattedSize) }
