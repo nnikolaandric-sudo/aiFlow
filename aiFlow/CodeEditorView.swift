@@ -283,7 +283,7 @@ final class AceEditorController: NSObject, ObservableObject, WKScriptMessageHand
     }
 
     private func openOne(_ url: URL) {
-        if let existing = docs.first(where: { $0.url == url }) {
+        if let existing = docs.first(where: { $0.url.path == url.path }) {
             switchTo(existing.id)
             return
         }

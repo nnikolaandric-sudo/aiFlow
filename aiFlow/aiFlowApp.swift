@@ -158,10 +158,12 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
             if isDir.boolValue && FileItem.isBrowsableFolder(url) {
                 AppDelegate.pendingNavigationURL = url
                 NotificationCenter.default.post(name: .navigateToPath, object: url)
+                self.repostIfUndelivered(.navigateToPath, url: url)
             } else if isSchemeLink {
                 let parent = url.deletingLastPathComponent()
                 AppDelegate.pendingNavigationURL = parent
                 NotificationCenter.default.post(name: .navigateToPath, object: parent)
+                self.repostIfUndelivered(.navigateToPath, url: parent)
             } else if isDir.boolValue {
                 NSWorkspace.shared.open(url)
             } else if DefaultFolderHandler.isFileViewer {
@@ -187,8 +189,26 @@ class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDele
                 let parent = url.deletingLastPathComponent()
                 AppDelegate.pendingNavigationURL = parent
                 NotificationCenter.default.post(name: .navigateToPath, object: parent)
+                self.repostIfUndelivered(.navigateToPath, url: parent)
             }
             NSApp.activate(ignoringOtherApps: true)
+        }
+    }
+
+    /// Cold launch: `open` događaj može stići pre pretplate (nema primaoca)
+    /// ili posle restorea (onAppear više ne čita pending) — tada post ode u
+    /// prazno a pending ostane zauvek. Ponovi post ako ga niko nije preuzeo;
+    /// `claim` (0.5 s) propušta ponavljanja (+0.8/+2/+4 s), a ako je neko
+    /// reagovao pending je nil pa se ne ponavlja (bez trzaja nazad).
+    private func repostIfUndelivered(_ name: Notification.Name, url: URL) {
+        // Spori restore (mnogo prozora) može da promaši i +0.8 s — ponavljaj
+        // dok pending visi; čim neko preuzme (receiver/onAppear) ili korisnik
+        // ručno navigira (onChange čisti pending), retryji odustaju.
+        for delay in [0.8, 2.0, 4.0] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                guard AppDelegate.pendingNavigationURL?.path == url.path else { return }
+                NotificationCenter.default.post(name: name, object: url)
+            }
         }
     }
 

@@ -159,6 +159,33 @@ func ffSelectStem(name: String, isDirectory: Bool) {
 /// ponovo otvorilo rename preko zastarjelog itema (stari path → "no-row" i
 /// zaglavljen `renamingID`). `commit()` na svakom stvarnom commitu, a
 /// `renameRequest` kratko odbija zahtjeve dok je svježe.
+///
+/// Registar browser prozora (WindowGroup): tool prozori (Today, E-Sign,
+/// PDF alati, palete) su obični NSWindow/NSPanel i mogu držati key dok šalju
+/// navigacione notifikacije. `keyIsBrowser` kaže da li key drži browser, a
+/// `claim` osigurava da isti post odradi samo jedan prozor.
+@MainActor
+enum FFBrowserWindows {
+    private static var windows = NSHashTable<NSWindow>.weakObjects()
+    static func track(_ w: NSWindow) { windows.add(w) }
+    static var keyIsBrowser: Bool {
+        guard let key = NSApp.keyWindow else { return false }
+        return windows.allObjects.contains(where: { $0 === key })
+    }
+    private static var lastClaimPath: String?
+    private static var lastClaimAt: Date = .distantPast
+    /// Isti post stiže svim browserima istog runloop kruga — samo prvi
+    /// reaguje (0.5 s prozor na istu putanju; ponovljeni post +0.8 s za kasne
+    /// pretplatnike i dvoklik na istu destinaciju i dalje prolaze).
+    /// Navigacija je idempotentna pa je gutanje duplikata bezbedno.
+    static func claim(_ url: URL) -> Bool {
+        let now = Date()
+        if url.path == lastClaimPath, now.timeIntervalSince(lastClaimAt) < 0.5 { return false }
+        lastClaimPath = url.path; lastClaimAt = now
+        return true
+    }
+}
+
 @MainActor
 enum FFRecentRename {
     private static var lastCommit = Date.distantPast

@@ -698,6 +698,10 @@ final class FileCommandPaletteWindowManager: NSObject, NSWindowDelegate {
     private func openURLs(_ urls: [URL]) {
         guard let url = urls.first else { return }
         close()
+        // Posle close() key se vraća invokeru, ali ne nužno istog runloop
+        // kruga — vrati ga eksplicitno da `isNavigationTarget` pogodi baš
+        // prozor iz kog je paleta pozvana (a ne prvi registrovani).
+        if let host = hostWindow, host.isVisible { host.makeKeyAndOrderFront(nil) }
         if FileItem.isBrowsableFolder(url) {
             NotificationCenter.default.post(name: .navigateToPath, object: url)
         } else {

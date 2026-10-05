@@ -486,6 +486,9 @@ struct ContentView: View {
         // Don't clear the icon cache on every navigation — NSCache evicts under
         // memory pressure automatically; keeping icons warm makes navigation fast.
         .onChange(of: currentPath)   { _, newPath  in
+            // Svaka stvarna navigacija gasi viseći pending (cold-launch retry
+            // ispod tada odustaje — bez ovoga bi kasni retry trznuo nazad).
+            AppDelegate.pendingNavigationURL = nil
             // History: user navigations push; back/forward pops set the flag.
             if isHistoryNav {
                 isHistoryNav = false
@@ -740,7 +743,11 @@ struct ContentView: View {
         }
         // Potpisana kopija (E-Sign) → osvezi i selektuj; "navigate" otvara i njen folder.
         .onReceive(NotificationCenter.default.publisher(for: .ffRevealFile)) { n in
+            guard isNavigationTarget else { return }
             guard let url = n.object as? URL else { return }
+            if n.userInfo?["navigate"] as? Bool == true {
+                guard FFBrowserWindows.claim(url) else { return }
+            }
             revealFileResults([url], destination: url.deletingLastPathComponent())
             // ffRevealFile nosi explicitni navigate flag — revealFileResults
             // jumpuje samo ako je nevidljivo, pa za navigate:true forsiraj.
@@ -762,8 +769,10 @@ struct ContentView: View {
             reload(force: true)
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToPath)) { n in
+            guard isNavigationTarget else { return }
+            guard let url = n.object as? URL, FFBrowserWindows.claim(url) else { return }
             AppDelegate.pendingNavigationURL = nil
-            if let url = n.object as? URL, !ffSamePath(url, currentPath) { currentPath = url }
+            if !ffSamePath(url, currentPath) { currentPath = url }
         }
     }
 
@@ -774,7 +783,8 @@ struct ContentView: View {
             FileCommandPaletteWindowManager.shared.open(initialFolder: currentPath)
         }
         .onReceive(NotificationCenter.default.publisher(for: .ffOpenPaletteURL)) { n in
-            guard let url = n.object as? URL else { return }
+            guard isNavigationTarget else { return }
+            guard let url = n.object as? URL, FFBrowserWindows.claim(url) else { return }
             navigate(url)
         }
         .onChange(of: currentPath) { _, folder in
@@ -902,10 +912,14 @@ struct ContentView: View {
             if let url = n.object as? URL { openInNewTab(url) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .ffComposeTask)) { n in
-            if let req = WorkspaceComposeRequest(notification: n) { composeTask = req }
+            guard isNavigationTarget else { return }
+            if let req = WorkspaceComposeRequest(notification: n),
+               FFBrowserWindows.claim(req.rootURL.appendingPathComponent(req.fileName)) { composeTask = req }
         }
         .onReceive(NotificationCenter.default.publisher(for: .ffComposeReminder)) { n in
-            if let req = WorkspaceComposeRequest(notification: n) { composeReminder = req }
+            guard isNavigationTarget else { return }
+            if let req = WorkspaceComposeRequest(notification: n),
+               FFBrowserWindows.claim(req.rootURL.appendingPathComponent(req.fileName)) { composeReminder = req }
         }
     }
 
@@ -1054,7 +1068,7 @@ struct ContentView: View {
     private var keyboardShortcuts: some View {
         Group {
             // Nulte veličine: hvata NSWindow ovog prozora za `isKeyWindowOwner`.
-            FFWindowCapture { hostingWindow = $0 }
+            FFWindowCapture { w in hostingWindow = w; if let w { FFBrowserWindows.track(w) } }
             Button("") { guard !isEditingText() else { return }; fileOps.undo() }
                 .keyboardShortcut("z", modifiers: .command).hidden().accessibilityHidden(true)
             Button("") { guard !isEditingText() else { return }; fileOps.redo() }
@@ -1624,6 +1638,16 @@ struct ContentView: View {
             return NSApp.mainWindow === w && key.level != .normal
         }
         return NSApp.mainWindow === w || NSApp.mainWindow == nil
+    }
+
+    /// Navigacioni target (reveal/navigate/paleta/compose): kad key drži
+    /// browser, samo on reaguje — inače bi svaki restaurirani prozor skočio
+    /// u isti folder (ili otvorio N editora za isti fajl). Kad key drži tool
+    /// prozor/panel (E-Sign save, palette pick, Today "show") ili ga nema,
+    /// prvi koji preuzme (claim) reaguje — bez toga poruka iz tool prozora
+    /// ne bi sigurno stigla ni do jednog browsera.
+    private var isNavigationTarget: Bool {
+        FFBrowserWindows.keyIsBrowser ? isKeyWindowOwner : true
     }
 
     // MARK: - Creation (inline naming, no dialog)

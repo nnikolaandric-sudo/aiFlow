@@ -606,14 +606,18 @@ enum TodayEditor {
 enum FFMainWindow {
     static func reveal(_ url: URL) {
         AppDelegate.pendingNavigationURL = url.deletingLastPathComponent()
-        NotificationCenter.default.post(name: .ffRevealFile, object: url, userInfo: ["navigate": true])
+        // Prvo front: post stiže istog runloop kruga, pa key mora već biti
+        // browser da bi `isNavigationTarget` pogodio baš njega.
         bringToFront(fallbackPath: url.deletingLastPathComponent())
+        NotificationCenter.default.post(name: .ffRevealFile, object: url, userInfo: ["navigate": true])
     }
 
     static func open(folder: URL) {
         AppDelegate.pendingNavigationURL = folder
-        NotificationCenter.default.post(name: .navigateToPath, object: folder)
+        // Prvo front: post stiže istog runloop kruga, pa key mora već biti
+        // browser da bi `isNavigationTarget` pogodio baš njega.
         bringToFront(fallbackPath: folder)
+        NotificationCenter.default.post(name: .navigateToPath, object: folder)
     }
 
     /// The browser is a SwiftUI WindowGroup window; tool windows are plain
