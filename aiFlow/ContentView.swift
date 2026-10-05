@@ -16,6 +16,10 @@ struct ContentView: View {
     @State private var sidebarItem:     SidebarItem?
     @State private var isHistoryNav = false
     @State private var showGoToFolder = false
+    /// Move/Copy to Folder… (⌘⇧V): selekcija i režim dok panel stoji.
+    @State private var transferSources: [URL] = []
+    @State private var transferIsMove = true
+    @State private var showTransferSheet = false
 
     // Browser tabs (v1): svaki tab drzi svoju putanju; aktivni tab vozi
     // currentPath (navigacija upisuje nazad u tab). Globalni navHistory je
@@ -89,6 +93,12 @@ struct ContentView: View {
     /// nevidljiv dok se rucno ne ode u taj folder.
     @State private var pendingSecondarySelectURLs: [URL] = []
     @State private var pendingRenameURL: URL?
+    /// NSWindow ovog browsera — razlučuje koji prozor sme da odgovori na
+    /// app-level notifikaciju (vidi `isKeyWindowOwner`).
+    @State private var hostingWindow: NSWindow?
+    /// Tek kreirani item (⇧⌘N/⌥⌘N): čeka da selekcija stigne u listing pa
+    /// se odmah pređe u inline rename — Finder ⇧⌘N ponašanje bez dijaloga.
+    @State private var pendingRenameAfterSelect: URL?
     @State private var activeTagFilter:  String? = nil
     @State private var tagDisplayFiles:  [FileItem] = []
     @State private var toastItem:        ToastPayload?
@@ -259,9 +269,10 @@ struct ContentView: View {
         let matched = rawFiles.filter { set.contains($0.url.path) }
         guard !matched.isEmpty else { return }
         selectedIDs = Set(matched.map(\.id))
+        consumePendingRenameAfterSelect(Set(matched.map(\.url.path)))
         pendingSelectURLs = pendingSelectURLs.filter { !set.contains($0.path) }
         if pendingSelectURLs.count <= 1, let first = matched.first,
-           first.url == pendingSelectURL { pendingSelectURL = nil }
+           first.url.path == pendingSelectURL?.path { pendingSelectURL = nil }
         else if pendingSelectURLs.isEmpty { pendingSelectURL = nil }
         if pendingSelectURLs.isEmpty { pendingSelectDestination = nil }
         // Bez ??0 fallbacka: kad target nije u vidljivom displayu
@@ -271,6 +282,28 @@ struct ContentView: View {
         scrollTableView(toRow: row)
     }
 
+    /// Tek kreirani item (⇧⌘N/⌥⌘N) prelazi u inline rename čim njegova
+    /// selekcija stigne u listing. `paths` = upravo selektovane putanje.
+    /// Stari item istog imena u drugom folderu nikad ne pokreće rename —
+    /// provjera roditeljskog foldera to blokira kad se u međuvremenu
+    /// navigiralo negdje drugo.
+    private func consumePendingRenameAfterSelect(_ paths: Set<String>) {
+        guard let url = pendingRenameAfterSelect else { return }
+        guard paths.contains(url.path) else {
+            // Item još nije u listingu — zastavicu drži samo dok smo u
+            // istom folderu; izašli smo van → zaboravi (ne iznenadi kasnije).
+            if !ffSamePath(url.deletingLastPathComponent(), currentPath) {
+                pendingRenameAfterSelect = nil
+            }
+            return
+        }
+        pendingRenameAfterSelect = nil
+        guard ffSamePath(url.deletingLastPathComponent(), currentPath) else {
+            return
+        }
+        pendingRenameURL = url
+    }
+
     // Split out of `body` so each chained expression stays within the Swift
     // type-checker's complexity budget (adding more modifiers to one giant
     // expression triggers "unable to type-check in reasonable time").
@@ -278,7 +311,7 @@ struct ContentView: View {
         NavigationSplitView {
             SidebarView(currentPath: $currentPath, selection: $sidebarItem,
                         activeTagFilter: $activeTagFilter, usedTagNames: usedTagNames,
-                        fileOps: fileOps, onReload: reload)
+                        fileOps: fileOps, onReload: { reload() })
                 .frame(minWidth: 160, idealWidth: 220)
                 .background(ArrowCursorArea())   // resets cursor when leaving the sidebar divider
                 .resetsCursorOnEnter()           // clears the divider's stuck resize cursor on entry
@@ -299,7 +332,7 @@ struct ContentView: View {
                         onCloseOthers: { closeOtherTabs(keeping: $0.id) },
                         onDuplicate: { duplicateTab($0.id) },
                         fileOps: fileOps,
-                        onReload: reload
+                        onReload: { reload() }
                     )
                     .resetsCursorOnEnter()
                 }
@@ -311,7 +344,7 @@ struct ContentView: View {
                 // keep full width and search drops below (no clipping).
                 // Search moved up into the window toolbar (top right, like
                 // Finder) — this row is the path alone, full width.
-                PathBarView(currentPath: $currentPath, fileOps: fileOps, onReload: reload,
+                PathBarView(currentPath: $currentPath, fileOps: fileOps, onReload: { reload() },
                             hidesChrome: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 12)
@@ -342,7 +375,7 @@ struct ContentView: View {
                     folderOrder:    folderOrderBinding,
                     showPreview:    $showPreview,
                     showColumnTree: $showColumnTree,
-                    onReload:       reload,
+                    onReload:       { reload() },
                     canGoBack:      navHistory.canGoBack,
                     canGoForward:   navHistory.canGoForward,
                     onGoBack:       goBack,
@@ -486,9 +519,9 @@ struct ContentView: View {
                 isLoading = true
             }
             reload()
-            // Git-aware filesystem: svaka navigacija detektuje repo (.git ka
-            // parentima) i osvježava status/branch za bedževe i status bar.
-            GitService.shared.refresh(for: newPath)
+            // Git status nije zaseban poziv ovdje: `reload()` već zove
+            // `GitService.refresh(for:)` — dupli dispatch na svaku navigaciju
+            // je terao dva odložena rada `git status -uall` za jedan klik.
         }
         .onChange(of: viewModeRaw) { _, raw in
             TrackpadSwipeNav.shared.browserSwipeEnabled = (ViewMode.fromStorage(raw) != .columns)
@@ -574,12 +607,14 @@ struct ContentView: View {
         if let dest = pendingSelectDestination, !ffSamePath(dest, currentPath) {
             pendingSelectURL = nil
             pendingSelectDestination = nil
+            pendingRenameAfterSelect = nil
             return
         }
-        guard let item = newFiles.first(where: { $0.url == url }) else { return }
+        guard let item = newFiles.first(where: { $0.url.path == url.path }) else { return }
         selectedIDs = [item.id]
         pendingSelectURL = nil
         pendingSelectDestination = nil
+        consumePendingRenameAfterSelect([item.url.path])
         let targetID = item.id
         DispatchQueue.main.async {
             // Bez ??0: nevidljiv target ne smije skrolati na vrh.
@@ -596,12 +631,14 @@ struct ContentView: View {
             pendingSelectURLs = []
             pendingSelectURL = nil
             pendingSelectDestination = nil
+            pendingRenameAfterSelect = nil
             return
         }
         let wanted = Set(pendingSelectURLs.map(\.path))
         let matched = newFiles.filter { wanted.contains($0.url.path) }
         guard !matched.isEmpty else { return }
         selectedIDs = Set(matched.map(\.id))
+        consumePendingRenameAfterSelect(Set(matched.map(\.url.path)))
         let matchedPaths = Set(matched.map { $0.url.path })
         pendingSelectURLs.removeAll(where: { matchedPaths.contains($0.path) })
         if let single = pendingSelectURL, matchedPaths.contains(single.path) {
@@ -632,23 +669,29 @@ struct ContentView: View {
     private var withCommandEvents: some View {
         splitWithChanges
         .onReceive(NotificationCenter.default.publisher(for: .createNewFolder)) { _ in
+            guard isKeyWindowOwner else { return }
             promptAndCreateFolder()
         }
         .onReceive(NotificationCenter.default.publisher(for: .createNewFile)) { _ in
+            guard isKeyWindowOwner else { return }
             promptAndCreateFile()
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleHiddenFiles)) { _ in
+            guard isKeyWindowOwner else { return }
             showHidden.toggle()
         }
         .onReceive(NotificationCenter.default.publisher(for: .ffTrashSelected)) { _ in
+            guard isKeyWindowOwner else { return }
             guard !isEditingText() else { return }
             trashSelected()
         }
         .onReceive(NotificationCenter.default.publisher(for: .ffShowInfo)) { _ in
+            guard isKeyWindowOwner else { return }
             guard !isEditingText() else { return }
             showInfoForSelection()
         }
         .onReceive(NotificationCenter.default.publisher(for: .ffSendViaMail)) { _ in
+            guard isKeyWindowOwner else { return }
             if isEditingText() {
                 showToast(ActionFeedback(icon: "exclamationmark.circle",
                                          message: "Click the file list first (focus is in a text field)"))
@@ -657,6 +700,7 @@ struct ContentView: View {
             sendSelectedViaMail()
         }
         .onReceive(NotificationCenter.default.publisher(for: .ffQuickLink)) { _ in
+            guard isKeyWindowOwner else { return }
             if isEditingText() {
                 showToast(ActionFeedback(icon: "exclamationmark.circle",
                                          message: "Click the file list first (focus is in a text field)"))
@@ -664,11 +708,26 @@ struct ContentView: View {
             }
             quickLinkSelected()
         }
-        .onReceive(NotificationCenter.default.publisher(for: .ffGoBack)) { _ in goBack() }
-        .onReceive(NotificationCenter.default.publisher(for: .ffGoForward)) { _ in goForward() }
-        .onReceive(NotificationCenter.default.publisher(for: .ffGoUp)) { _ in goUp() }
-        .onReceive(NotificationCenter.default.publisher(for: .ffGoToFolder)) { _ in showGoToFolder = true }
-        .onReceive(NotificationCenter.default.publisher(for: .ffAIOrganize)) { _ in aiOrganizeCurrentFolder() }
+        .onReceive(NotificationCenter.default.publisher(for: .ffGoBack)) { _ in
+            guard isKeyWindowOwner else { return }
+            goBack()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ffGoForward)) { _ in
+            guard isKeyWindowOwner else { return }
+            goForward()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ffGoUp)) { _ in
+            guard isKeyWindowOwner else { return }
+            goUp()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ffGoToFolder)) { _ in
+            guard isKeyWindowOwner else { return }
+            showGoToFolder = true
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ffAIOrganize)) { _ in
+            guard isKeyWindowOwner else { return }
+            aiOrganizeCurrentFolder()
+        }
         // File ▸ Sign Document…: selektovani PDF/slika, inace picker u ovom folderu.
         .onReceive(NotificationCenter.default.publisher(for: .ffESignSelection)) { n in
             guard let request = n.object as? ESignMenuRequest, !request.handled else { return }
@@ -698,7 +757,10 @@ struct ContentView: View {
                 currentPath = url.deletingLastPathComponent()
             }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .ffRefresh)) { _ in reload() }
+        .onReceive(NotificationCenter.default.publisher(for: .ffRefresh)) { _ in
+            guard isKeyWindowOwner else { return }
+            reload(force: true)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToPath)) { n in
             AppDelegate.pendingNavigationURL = nil
             if let url = n.object as? URL, !ffSamePath(url, currentPath) { currentPath = url }
@@ -708,6 +770,7 @@ struct ContentView: View {
     private var withFilePaletteEvents: some View {
         withCommandEvents
         .onReceive(NotificationCenter.default.publisher(for: .ffOpenFilePalette)) { _ in
+            guard isKeyWindowOwner else { return }
             FileCommandPaletteWindowManager.shared.open(initialFolder: currentPath)
         }
         .onReceive(NotificationCenter.default.publisher(for: .ffOpenPaletteURL)) { n in
@@ -739,18 +802,21 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .ffGitShowRepo)) { n in
             if let url = n.object as? URL { handleGitPreviewRequest(url) }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .ffGitDidChange)) { _ in reload() }
+        .onReceive(NotificationCenter.default.publisher(for: .ffGitDidChange)) { _ in reload(force: true) }
         // Git meni (Git ▸ View Changes ⌥⌘G / Status ⇧⌘G / History ⌥⌘H):
         // rezolvuje tekuću selekciju pa delegira istom preview putu.
         .onReceive(NotificationCenter.default.publisher(for: .ffGitDiffCurrent)) { _ in
+            guard isKeyWindowOwner else { return }
             guard !isEditingText() else { return }
             gitDiffCurrent()
         }
         .onReceive(NotificationCenter.default.publisher(for: .ffGitHistoryCurrent)) { _ in
+            guard isKeyWindowOwner else { return }
             guard !isEditingText() else { return }
             gitHistoryCurrent()
         }
         .onReceive(NotificationCenter.default.publisher(for: .ffGitRepoCurrent)) { _ in
+            guard isKeyWindowOwner else { return }
             guard !isEditingText() else { return }
             gitRepoCurrent()
         }
@@ -815,13 +881,24 @@ struct ContentView: View {
     /// more onReceive modifiers pushed it over ("unable to type-check").
     private var withTabEvents: some View {
         withGitEvents
-        .onReceive(NotificationCenter.default.publisher(for: .ffNewTab)) { _ in newTab() }
+        .onReceive(NotificationCenter.default.publisher(for: .ffNewTab)) { _ in
+            guard isKeyWindowOwner else { return }
+            newTab()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .ffCloseTab)) { _ in
+            guard isKeyWindowOwner else { return }
             if let id = activeTabID { closeTab(id) }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .ffNextTab)) { _ in cycleTab(forward: true) }
-        .onReceive(NotificationCenter.default.publisher(for: .ffPrevTab)) { _ in cycleTab(forward: false) }
+        .onReceive(NotificationCenter.default.publisher(for: .ffNextTab)) { _ in
+            guard isKeyWindowOwner else { return }
+            cycleTab(forward: true)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ffPrevTab)) { _ in
+            guard isKeyWindowOwner else { return }
+            cycleTab(forward: false)
+        }
         .onReceive(NotificationCenter.default.publisher(for: .ffOpenInNewTab)) { n in
+            guard isKeyWindowOwner else { return }
             if let url = n.object as? URL { openInNewTab(url) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .ffComposeTask)) { n in
@@ -834,8 +911,12 @@ struct ContentView: View {
 
     private var withServiceEvents: some View {
         withTabEvents
-        // Folder/file created → navigate to destination if needed, then select & scroll.
+        // Folder/file created → navigate to destination if needed, then select
+        // & scroll, then (new) start inline rename. Creation also registers
+        // its own undo — it never did before, so ⌘Z silently skipped it.
         .onReceive(folderService.$lastCreatedURL.compactMap { $0 }) { url in
+            fileOps.registerCreateUndo(url, reload: { reload() })
+            pendingRenameAfterSelect = url
             revealFileResults([url], destination: url.deletingLastPathComponent())
         }
         .onReceive(fileOps.$lastOpURLs.compactMap { $0 }) { urls in
@@ -933,6 +1014,15 @@ struct ContentView: View {
         .sheet(isPresented: $showGoToFolder) {
             GoToFolderSheet(currentPath: $currentPath, isPresented: $showGoToFolder)
         }
+        .sheet(isPresented: $showTransferSheet) {
+            MoveToFolderSheet(sources: transferSources,
+                              kind: transferIsMove ? .move : .copy,
+                              currentPath: currentPath,
+                              isPresented: $showTransferSheet) { dest, shouldMove in
+                fileOps.importURLs(transferSources, to: dest, shouldMove: shouldMove,
+                                   reload: { reload() })
+            }
+        }
         .sheet(isPresented: $showBatchRename) {
             BatchRenameSheet(files: batchTargets, fileOps: fileOps, onDone: reloadBoth)
         }
@@ -963,6 +1053,8 @@ struct ContentView: View {
     @ViewBuilder
     private var keyboardShortcuts: some View {
         Group {
+            // Nulte veličine: hvata NSWindow ovog prozora za `isKeyWindowOwner`.
+            FFWindowCapture { hostingWindow = $0 }
             Button("") { guard !isEditingText() else { return }; fileOps.undo() }
                 .keyboardShortcut("z", modifiers: .command).hidden().accessibilityHidden(true)
             Button("") { guard !isEditingText() else { return }; fileOps.redo() }
@@ -977,7 +1069,7 @@ struct ContentView: View {
                 let sel = displayFiles.filter { selectedIDs.contains($0.id) }
                 if !sel.isEmpty { fileOps.cut(sel.map(\.url)) }
             }.keyboardShortcut("x", modifiers: .command).hidden().accessibilityHidden(true)
-            Button("") { guard !isEditingText() else { return }; fileOps.paste(to: pasteDestination, reload: reload) }
+            Button("") { guard !isEditingText() else { return }; fileOps.paste(to: pasteDestination, reload: { reload() }) }
                 .keyboardShortcut("v", modifiers: .command).hidden().accessibilityHidden(true)
             // ── Navigation (⌘[, ⌘], ⌘↑, ⇧⌘G) handled by FinderFlowCommands menu
             // → notifications (see onReceive above). No hidden duplicates here
@@ -1009,8 +1101,21 @@ struct ContentView: View {
             Button("") {
                 guard !isEditingText() else { return }
                 let sel = displayFiles.filter { selectedIDs.contains($0.id) }
-                if !sel.isEmpty { fileOps.duplicate(sel.map(\.url), reload: reload) }
+                if !sel.isEmpty { fileOps.duplicate(sel.map(\.url), reload: { reload() }) }
             }.keyboardShortcut("d", modifiers: .command).hidden().accessibilityHidden(true)
+            // ── Return renames the selection (Finder: Return/F2 in every
+            // view). List covers it when the table has focus (the table
+            // consumes Return itself); this catches the unfocused case and
+            // Icons/Columns, which had no rename key at all.
+            Button("") {
+                guard !isEditingText() else { return }
+                guard !showFirstRun, !showGoToFolder, !showBatchRename,
+                      !showDiscordSheet, !showAIOrganizer, !showTransferSheet,
+                      errorMsg == nil else { return }
+                guard let item = primarySelectedItems.first else { return }
+                renameRequest(item)
+            }
+            .keyboardShortcut(.return, modifiers: []).hidden().accessibilityHidden(true)
             // ── Backspace exits the folder (go up) — no menu equivalent.
             // Primary path is BackspaceUpNav (AppKit local monitor, same
             // .ffGoUp notification): the hidden Button below is a fallback
@@ -1026,12 +1131,25 @@ struct ContentView: View {
             Button("") {
                 guard !isEditingText() else { return }
                 guard !showFirstRun, !showGoToFolder, !showBatchRename,
-                      !showDiscordSheet, !showAIOrganizer, errorMsg == nil else { return }
+                      !showDiscordSheet, !showAIOrganizer, !showTransferSheet,
+                      errorMsg == nil else { return }
                 selectedIDs.removeAll()
                 secondaryIDs.removeAll()
             }
             .keyboardShortcut(.escape, modifiers: []).hidden().accessibilityHidden(true)
             // Quick Look on selection is handled in List/Icons via Space.
+        }
+        // Move/Copy to Folder… (File meni ⇧⌘V, ⌘K paleta, desni klik). Nisu u
+        // withCommandEvents: taj lanac .onReceive-а je već na type-checker
+        // budžetu, a ova dva ga prelaze. Desni klik šalje svoje `urls` preko
+        // object-a; meni i paleta bez objekta koriste primarnu selekciju.
+        .onReceive(NotificationCenter.default.publisher(for: .ffMoveToFolder)) { n in
+            guard isKeyWindowOwner else { return }
+            openTransferPicker(move: true, explicit: n.object as? [URL])
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .ffCopyToFolder)) { n in
+            guard isKeyWindowOwner else { return }
+            openTransferPicker(move: false, explicit: n.object as? [URL])
         }
     }
 
@@ -1197,18 +1315,14 @@ struct ContentView: View {
         guard !urls.isEmpty else { return }
         // Selection is cleared by the reload after a successful trash — clearing
         // it first meant a failed operation silently dropped the selection.
-        fileOps.trash(urls, reload: reload)
+        fileOps.trash(urls, reload: { reload() })
     }
 
-    /// SelectionActionBar rename: ListView does inline rename via
-    /// pendingRenameURL; Icons/Columns never consumed that binding, so the
-    /// pencil was a silent no-op there. Route by view mode.
+    /// Svi viewovi sada imaju inline rename (List preko tabele, Icons/Columns
+    /// preko polja u redu) — jedan ulaz za toolbar olovku, ⌘K i context meni.
     private func renameRequest(_ item: FileItem) {
-        if viewMode == .list {
-            pendingRenameURL = item.url
-        } else {
-            FileRenamePrompt.rename(item, fileOps: fileOps, reload: reload)
-        }
+        guard !FFRecentRename.fresh else { return }
+        pendingRenameURL = item.url
     }
 
     // MARK: - Search query → local-rank pipeline
@@ -1485,41 +1599,64 @@ struct ContentView: View {
         showDiscordSheet = true
     }
 
-    // MARK: - Pre-named creation dialogs
+    // MARK: - Multi-window fan-out guard
+    //
+    // App-level notifikacije (meni, ⌘K paleta, desni klik) stižu u SVAKI
+    // otvoreni prozor — macOS restaurira zatvorene prozore, pa ih lako bude
+    // nekoliko, a svaki ContentView ima svoj `.onReceive` lanac. Bez ove
+    // provere akcija se ponovi jednom po prozoru: ⇧⌘N je pravio N praznih
+    // "New Folder" foldera, a toggle skrivenih fajlova bi se N-1 puta
+    // poništio sam od sebe. Samo key prozor sme da odgovori.
+    private var isKeyWindowOwner: Bool {
+        guard let w = hostingWindow else {
+            // Hvatanje još nije stiglo (prvi trenutak posle lansiranja).
+            // Bez prozora ne znamo koji je window naš — kod više otvorenih
+            // prozora je sigurnije blokirati nego pustiti svih N da odrade
+            // istu komandu (fan-out: N foldera po pritisku).
+            return NSApp.windows.filter { $0.isVisible && $0.level == .normal }.count <= 1
+        }
+        if NSApp.keyWindow === w { return true }
+        if let key = NSApp.keyWindow {
+            // Sheet / child window nad našim prozorom je key dok traje.
+            if key.sheetParent === w || key.parent === w { return true }
+            // Key je vanjski panel (⌘K paleta, Quick Look) — naš prozor je
+            // i dalje glavni browser.
+            return NSApp.mainWindow === w && key.level != .normal
+        }
+        return NSApp.mainWindow === w || NSApp.mainWindow == nil
+    }
 
-    // Show a name dialog BEFORE creating, so the item appears with the correct name immediately.
-    // Respects the active destination (selected folder or currentPath).
+    // MARK: - Creation (inline naming, no dialog)
+
+    // Finder parity: ⇧⌘N / ⌥⌘N create immediately with a placeholder name and
+    // drop the new item straight into inline rename — no blocking NSAlert in
+    // between (dialog = click + type + Return; inline = click + type + Return,
+    // but without the modal taking the window over). Respects the active
+    // destination (selected folder or currentPath).
 
     func promptAndCreateFolder() {
-        let dest = activeDestination
-        let alert = NSAlert()
-        alert.messageText     = "New Folder in \"\(dest.lastPathComponent)\""
-        alert.informativeText = "Enter a name for the new folder:"
-        alert.addButton(withTitle: "Create")
-        alert.addButton(withTitle: "Cancel")
-        let tf = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        tf.stringValue = "New Folder"; tf.selectText(nil)
-        alert.accessoryView = tf; alert.window.initialFirstResponder = tf
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let name = tf.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
-        folderService.createFolder(at: dest, name: name)
+        folderService.createFolder(at: activeDestination, name: "New Folder")
     }
 
     func promptAndCreateFile() {
-        let dest = activeDestination
-        let alert = NSAlert()
-        alert.messageText     = "New File in \"\(dest.lastPathComponent)\""
-        alert.informativeText = "Enter a name for the new file (include extension, e.g. notes.txt):"
-        alert.addButton(withTitle: "Create")
-        alert.addButton(withTitle: "Cancel")
-        let tf = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        tf.stringValue = "untitled.txt"; tf.selectText(nil)
-        alert.accessoryView = tf; alert.window.initialFirstResponder = tf
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let name = tf.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !name.isEmpty else { return }
-        folderService.createFile(at: dest, name: name)
+        folderService.createFile(at: activeDestination, name: "untitled.txt")
+    }
+
+    // MARK: - Move/Copy to Folder… (⌘⇧V)
+
+    /// Selekcija u panel za destinaciju. Bez selekcije nema šta da se šalje —
+    /// tada je poruka umesto praznog panela (isto kao ostale akcije).
+    private func openTransferPicker(move: Bool, explicit: [URL]? = nil) {
+        guard !isEditingText() else { return }
+        let selection = (explicit ?? primarySelectedItems.map(\.url)).filter(\.isFileURL)
+        guard !selection.isEmpty else {
+            showToast(ActionFeedback(icon: "exclamationmark.circle",
+                                     message: "Select items first"))
+            return
+        }
+        transferSources = selection
+        transferIsMove = move
+        showTransferSheet = true
     }
 
     // MARK: - Permanent delete with confirmation
@@ -1541,7 +1678,7 @@ struct ContentView: View {
 
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         selectedIDs = []
-        fileOps.permanentlyDelete(items.map(\.url), reload: reload)
+        fileOps.permanentlyDelete(items.map(\.url), reload: { reload() })
     }
 
     // MARK: - File browser
@@ -1632,11 +1769,11 @@ struct ContentView: View {
                 // gresku refresha -> lista + traka upozorenja.
                 if let err = folderError, displayFiles.isEmpty, !isLoading {
                     FolderErrorView(url: currentPath, error: err,
-                                    onRetry: reload,
+                                    onRetry: { reload() },
                                     onGoHome: { currentPath = FileManager.default.homeDirectoryForCurrentUser })
                 } else {
                     if let err = folderError, !displayFiles.isEmpty {
-                        FolderErrorBanner(error: err, onRetry: reload)
+                        FolderErrorBanner(error: err, onRetry: { reload() })
                     }
                     fileBrowser
                         // View-mode crossfade (⌘1/2/3): opacity-only, container
@@ -1656,7 +1793,7 @@ struct ContentView: View {
         } preview: {
             // Handle, limits, the remembered width and the show/hide
             // transition all live in PreviewSplit (NavigationUI.swift).
-            FilePreviewPanel(item: selectedItem, fileOps: fileOps, onReload: reload,
+            FilePreviewPanel(item: selectedItem, fileOps: fileOps, onReload: { reload() },
                              showHidden: showHidden,
                              currentFolder: currentPath,
                              onOpenFile: navigateItem,
@@ -1679,7 +1816,7 @@ struct ContentView: View {
                 groupBy:          browserGroupBy,
                 onNavigate:       navigateItem,
                 onBrowseInto:     { currentPath = $0 },
-                onReload:         reload,
+                onReload:         { reload() },
                 fileOps:          fileOps,
                 favorites:        favorites,
                 isSearching:      isSearchActive,
@@ -1698,11 +1835,12 @@ struct ContentView: View {
             IconsView(
                 files:       displayFiles,
                 selectedIDs: $selectedIDs,
+                pendingRenameURL: $pendingRenameURL,
                 currentPath: currentPath,
                 groupBy:     browserGroupBy,
                 onNavigate:  navigateItem,
                 onBrowseInto: { currentPath = $0 },
-                onReload:    reload,
+                onReload:    { reload() },
                 fileOps:     fileOps,
                 favorites:   favorites,
                 isSearching: isSearchActive,
@@ -1717,6 +1855,7 @@ struct ContentView: View {
         case .columns:
             ColumnsView(
                 currentPath:    $currentPath,
+                pendingRenameURL: $pendingRenameURL,
                 showHidden:     showHidden,
                 showColumnTree: showColumnTree,
                 groupBy:        groupBy,
@@ -2210,15 +2349,18 @@ struct ContentView: View {
         withAnimation(.easeOut(duration: 0.25)) { toastItem = nil }
     }
 
-    func reload() {
+    /// `force` preskače provjeru "da li se folder promijenio" (⌘R i Git
+    /// događaji — tamo korisnik očekuje novo čitanje diska).
+    func reload(force: Bool = false) {
         GitService.shared.refresh(for: currentPath)
-        _reload(then: nil)
+        _reload(force: force, then: nil)
     }
 
-    private func _reload(then: (() -> Void)?) {
+    private func _reload(force: Bool = false, then: (() -> Void)?) {
         reloadGeneration &+= 1
         let gen    = reloadGeneration
         let path   = currentPath
+        ffTraceReload(path: path, force: force)
         let hidden = showHidden
         let field  = sortField
         let asc    = sortAscending
@@ -2229,6 +2371,14 @@ struct ContentView: View {
         // immediately (re-sorted with current prefs — no disk I/O), then
         // revalidate in background. This is what makes Back/Forth feel instant.
         if let snapshot = DirectoryCache.shared.cachedItems(for: path, showHidden: hidden) {
+            // Pozadinska revalidacija je JEDINI skup dio ulaska u keširani folder
+            // (nova enumeracija + metadata za sve stavke: 150–330 ms za 8k).
+            // Skakanje među folderima je zvalo taj prolaz za svaki klik, i taj
+            // pozadinski I/O se takmičio sa sljedećim klikom — odavle "kuca".
+            // `stat()` foldera (~0,02 ms) je dovoljan da se odluči: mtime se
+            // mijenja pri svakom dodavanju/brisanju/preimenovanju, a starije
+            // od 10 s ipak ide na disk da izmjene u mjestu ne bi zauvijek stale.
+            let revalidate = force || DirectoryCache.shared.needsRevalidation(for: path, showHidden: hidden)
             // Veliki folder (>2k) sa skupim string-sortom (name/kind/ext):
             // `localizedCompare` lavina ne sme na main, pa sort + revalidacija
             // idu u pozadinu uz jedan publish. Stari prikaz se NE briše —
@@ -2258,10 +2408,30 @@ struct ContentView: View {
                     let sorted = sortedItems(snapshot, by: field, ascending: asc, folderOrder: fold)
                     DispatchQueue.main.async {
                         guard lgen == largeSortGen, gen == reloadGeneration, path == currentPath else { return }
-                        rawFiles = sorted
-                        filesIdentity &+= 1
+                        // Same-list guard (kao ispod za revalidaciju): jedna
+                        // navigacija izaziva VIŠE reload poziva (izmjereno 6–9), a
+                        // svaki je prije ponovo prijavljivao isti niz i dirao
+                        // `filesIdentity` → SwiftUI je gradio CIJELU listu
+                        // (8k redova) 6–9 puta za jedan klik. Poređenje je O(n)
+                        // jeftinih polja; rekonstrukcija reda nije.
+                        let changed = sorted != rawFiles
+                        if changed {
+                            rawFiles = sorted
+                            filesIdentity &+= 1
+                        }
                         isLoading = false
+                        ffTracePublish(path: path, published: changed)
                         maybeStartFolderSizing()
+                    }
+                    // Folder se nije promijenio (mtime isti): presortirani snimak
+                    // je sve što treba — nema novog čitanja diska, nema drugog
+                    // publish-a, nema prefetch-a koji bi se takmičio sa klikom.
+                    guard revalidate else {
+                        DispatchQueue.main.async {
+                            guard lgen == largeSortGen, gen == reloadGeneration, path == currentPath else { return }
+                            then?()
+                        }
+                        return
                     }
                     // Revalidacija: drugi publish samo ako se folder stvarno
                     // promijenio (inače bi pregradnja svih redova bila džaba).
@@ -2290,11 +2460,21 @@ struct ContentView: View {
                 }
                 return
             }
-            rawFiles = sortedItems(snapshot, by: field, ascending: asc, folderOrder: fold)
-            filesIdentity &+= 1
+            // Isti same-list guard kao u velikoj grani: ponovljena navigacija
+            // (6–9 reload poziva po kliku) ne smije svaki put pregraditi listu.
+            let sortedSnapshot = sortedItems(snapshot, by: field, ascending: asc, folderOrder: fold)
+            let listChanged = sortedSnapshot != rawFiles
+            if listChanged {
+                rawFiles = sortedSnapshot
+                filesIdentity &+= 1
+            }
             isLoading = false
+            ffTracePublish(path: path, published: listChanged)
             then?()
             maybeStartFolderSizing()
+            // Folder nije promijenjen (mtime isti) i nije stariji od prozora
+            // svejednosti: nema pozadinskog prolaza kroz disk.
+            guard revalidate else { return }
             // Background revalidation keeps it fresh (external changes, etc.).
             // Skip the second publish when nothing changed: assigning `rawFiles`
             // again rebuilds the whole visible list (Table/List diff over every
@@ -2345,6 +2525,33 @@ struct ContentView: View {
 /// because the background sizing walk must read it off the main thread —
 /// reading @State off-main would be a data race. Bumping it cancels any
 /// in-flight run; publishes re-check it (plus the path) on the main thread.
+// MARK: - Perf dijagnostika (privremeno)
+//
+// Broj `reload()` poziva po navigaciji — jedna navigacija je pozivala
+// više puta zaredom, a svaki poziv je nosio punu revalidaciju foldera i
+// `git status`. Aktivno SAMO kad je `FF_GIT_TRACE` postavljen na putanju
+// fajla (bez te varijable nema ni reda I/O-a).
+func ffTraceReload(path: URL, force: Bool) {
+    guard let p = ProcessInfo.processInfo.environment["FF_GIT_TRACE"],
+          let fh = FileHandle(forWritingAtPath: p) else { return }
+    fh.seekToEndOfFile()
+    let stack = Thread.callStackSymbols.prefix(14)
+        .map { $0.trimmingCharacters(in: .whitespaces) }
+        .filter { !$0.contains("ffTraceReload") }
+        .joined(separator: " | ")
+    fh.write(Data("\(Date().timeIntervalSince1970)\treload\t\(path.lastPathComponent)\(force ? "!force" : "")\t\(stack)\n".utf8))
+    try? fh.close()
+}
+
+/// Da li je lista zaista rebuildovana (ili je preskočeno jer je ista).
+func ffTracePublish(path: URL, published: Bool) {
+    guard let p = ProcessInfo.processInfo.environment["FF_GIT_TRACE"],
+          let fh = FileHandle(forWritingAtPath: p) else { return }
+    fh.seekToEndOfFile()
+    fh.write(Data("\(Date().timeIntervalSince1970)\tpublish\t\(path.lastPathComponent)\t\(published ? "built" : "identical")\n".utf8))
+    try? fh.close()
+}
+
 private final class FolderSizeRunState: @unchecked Sendable {
     private let lock = NSLock()
     private var gen: UInt = 0
@@ -3102,4 +3309,41 @@ extension View {
     /// this view. Use on split-view panes so the divider's resize cursor never
     /// sticks after the pointer moves off the divider onto the pane.
     func resetsCursorOnEnter() -> some View { background(CursorResetOnEnter()) }
+}
+
+// MARK: - Window capture (multi-window notifikacije)
+//
+// Nulte velčine: samo prosleđuje NSWindow vlasničkom ContentView-ovima da
+// `isKeyWindowOwner` zna da li je baš taj prozor key. Bez toga bi svaki
+// otvoreni prozor ponovio istu app-level akciju.
+private final class FFWindowProbe: NSView {
+    var onWindow: ((NSWindow?) -> Void)?
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let w = window else { return }
+        DispatchQueue.main.async { [weak self] in self?.onWindow?(w) }
+    }
+    override func viewDidMoveToSuperview() {
+        super.viewDidMoveToSuperview()
+        guard let w = window else { return }
+        DispatchQueue.main.async { [weak self] in self?.onWindow?(w) }
+    }
+}
+
+private struct FFWindowCapture: NSViewRepresentable {
+    let onWindow: (NSWindow?) -> Void
+    func makeNSView(context: Context) -> FFWindowProbe {
+        let v = FFWindowProbe()
+        v.translatesAutoresizingMaskIntoConstraints = false
+        v.onWindow = onWindow
+        if let w = v.window { onWindow(w) }
+        return v
+    }
+    func updateNSView(_ nsView: FFWindowProbe, context: Context) {
+        nsView.onWindow = onWindow
+        // Nikad nil: SwiftUI zove update i dok je view privremeno odvojen
+        // od prozora (restore/reattach) — to bi obrisalo hvatanje i ugasilo
+        // key-window zaštitu (svih N prozora bi odradilo istu komandu).
+        if let w = nsView.window { onWindow(w) }
+    }
 }

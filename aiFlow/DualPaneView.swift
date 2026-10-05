@@ -233,6 +233,7 @@ struct SecondaryPane: View {
             case .icons:
                 IconsView(
                     files: display, selectedIDs: $selectedIDs,
+                    pendingRenameURL: $pendingRenameURL,
                     currentPath: path, groupBy: groupBy,
                     onNavigate: navigate, onBrowseInto: { path = $0 },
                     onReload: onReload, fileOps: fileOps, favorites: favorites,

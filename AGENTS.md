@@ -78,6 +78,44 @@ Folder Rules AI (Settings ▸ Folder Rules, podrazumijevano isključeno),
 Send to Discord, Check for Updates. Nikad ne šalji sadržaj fajlova van
 onoga što korisnik eksplicitno odobri.
 
+## Performanse navigacije (skakanje iz foldera u folder)
+
+- Kod: `DirectoryCache` (`Stamp` = mtime foldera + `needsRevalidation`),
+  `ContentView._reload(force:then:)` (brama revalidacije), `GitService`
+  (`statusFreshness` memo po repou + `pendingRootKey`).
+- **Ne puno čitaj disk pri svakom ulasku u keširani folder.** Keširani snimak
+  se prikaže odmah; puni prolaz (`loadFreshItems`) ide samo ako se mtime
+  foldera promijenio, ako je snimak stariji od 10 s, ili na `force` (⌘R
+  `.ffRefresh`, `.ffGitDidChange`). Izmjereno (`tools/perf-bounce/run.sh`):
+  0 punih revalidacija za 36 navigacija, 0.003–0.009 ms po provjeri pečata;
+  jedan puni prolaz je 19–52 ms (Documents/Downloads). Ako folder u međuvremenu
+  zaista promijeni mtime, revalidacija se (ispravno) desi.
+- **`~/Documents` (i slični folderi) mogu biti git repo.** `git status -uall`
+  je ondje izmjeren 183–732 ms + `git branch --list`, a pokretao se na svaku
+  navigaciju i to DVAPUT (`reload()` + `onChange(of: currentPath)`). Sada:
+  jedno mjesto; `refresh` preskače repo provjeren u zadnjih 5 s i NE uzima
+  generaciju; `refreshNow` (stage/commit/pull) zaobilazi prozor; memo je PO
+  REPO-U (ulazak u folder bez repo-a ga ne briše).
+- **Jedna navigacija zna napraviti 6–9 `reload()` poziva** (izmjereno: 47
+  reloada za 12 navigacija). To je razlog zašto se čekalo na to da „nešto
+  u pozadini radi": svaki reload je podizao generaciju i odbacivao
+  pokrenuti `git status`, pa se status nikad nije završio. Zato `doRefresh`
+  više ne odbacuje rezultat samo zbog generacije — provjerava da li je NJEGOV
+  repo i dalje na ekranu (`isRepoStillCurrent`). Izmjereno na istom obrascu
+  (12 navigacija, 3 posjete Documents): **4 puna `git status` + 55
+  preskočenih**; ranije se pokretao po svakom refreshu. Uz to: gornji red
+  `refresh` NE diže generaciju za već provjeren repo, pa ne može poništiti
+  rad koji je u toku.
+- Testovi/harness: `./tools/perf-bounce/run.sh` (deterministički; kompajlira
+  pravi `DirectoryCache.swift` + `FileItemStub.swift`).
+  `./tools/perf-bounce/count-git.sh <app>` broji `git status` pozive iz app-a —
+  traži build sa `FF_GIT_TRACE` hookom i **aktivan ekran** (macOS sleeping
+  sesiji ne isporučuje `open -a` događaje, pa se dobije lažnih 0).
+- Dijagnostika u app-u je bez ijednog reda I/O-a kad `FF_GIT_TRACE` nije
+  postavljen: `GitService.traceFullStatus/traceRefreshCall` i
+  `ffTraceReload(path:force:)` u `ContentView.swift` (hvata stog poziva).
+  Uključiti: `launchctl setenv FF_GIT_TRACE /tmp/trace.log` prije `open` app-a.
+
 ## Folder Rules (automatsko sređivanje)
 
 - Kod: `aiFlow/FolderRules.swift` (model, offline parser pravila, engine,

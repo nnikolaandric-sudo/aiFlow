@@ -198,7 +198,7 @@ struct ListView: View {
                     // mid-flight) must not linger and fire later if the same
                     // path reappears.
                     pendingRenameURL = nil
-                    guard let url, let item = files.first(where: { $0.url == url }) else { return }
+                    guard let url, let item = files.first(where: { $0.url.path == url.path }) else { return }
                     startRename(item: item)
                 }
         }
@@ -323,6 +323,7 @@ struct ListView: View {
             renamingID = nil
             guard let name = name?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !name.isEmpty, name != item.name else { return }
+            FFRecentRename.commit()
             fileOps.rename(item.url, to: name, reload: onReload)
         }
         actions.onQuickLook = { ids in quickLook(ids: ids) }
@@ -627,7 +628,7 @@ struct GroupedListView: View {
         }
         .onChange(of: pendingRenameURL) { _, url in
             pendingRenameURL = nil
-            guard let url, let item = files.first(where: { $0.url == url }) else { return }
+            guard let url, let item = files.first(where: { $0.url.path == url.path }) else { return }
             startGroupedRename(item: item)
         }
         .background(
@@ -708,6 +709,7 @@ struct GroupedListView: View {
         guard !renameCancelled else { renameCancelled = false; return }
         let name = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty, name != item.name else { return }
+            FFRecentRename.commit()
         fileOps.rename(item.url, to: name, reload: onReload)
     }
 

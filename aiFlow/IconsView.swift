@@ -4,6 +4,9 @@ import AppKit
 struct IconsView: View {
     let files:       [FileItem]
     @Binding var selectedIDs: Set<String>
+    /// Svi viewovi (List/Icons/Columns) jedan rename ulaz: ContentView samo
+    /// upiše URL, ovaj view ga troši i drži inline polje.
+    @Binding var pendingRenameURL: URL?
     let currentPath: URL
     let groupBy:     GroupBy
     let onNavigate:  (FileItem) -> Void
@@ -32,6 +35,8 @@ struct IconsView: View {
     @State private var iconSize: CGFloat = 64
     /// Anchor for Shift-range selection: the last plain/Cmd-clicked icon.
     @State private var anchorID: String?
+    /// Inline rename (Finder parity: Return renames, Escape aborts).
+    @State private var renamingID: String?
 
     private var columns: [GridItem] {
         [GridItem(.adaptive(minimum: iconSize + 20, maximum: iconSize + 40), spacing: 8)]
@@ -110,7 +115,10 @@ struct IconsView: View {
                                         // operacija po kliku), sada je to O(vidljivih).
                                         IconCell(item: item, iconSize: iconSize, isSelected: isSel,
                                                  driveVersion: driveIndex.version,
-                                                 workspaceVersion: workspaces.version)
+                                                 workspaceVersion: workspaces.version,
+                                                 isRenaming: renamingID == item.id,
+                                                 onRenameFinish: { finishRename(id: item.id, text: $0) },
+                                                 onRenameCancel: cancelRename)
                                             .equatable()
                                     }
                                         .fileDragOut(item: item, files: files, selectedIDs: selected)
@@ -154,6 +162,18 @@ struct IconsView: View {
                 let flat = groups.flatMap(\.items)
                 guard let first = flat.first(where: { new.contains($0.id) }) else { return }
                 withAnimation(.easeOut(duration: 0.15)) { proxy.scrollTo(first.id) }
+            }
+            // Rename izvan view-a (toolbar olovka, ⌘K paleta, context meni):
+            // pokupi se ovdje jer Icons nikad nije imao inline polje.
+            .onChange(of: pendingRenameURL) { _, url in
+                pendingRenameURL = nil
+                guard let url, let item = files.first(where: { $0.url.path == url.path }) else { return }
+                startRename(item: item)
+            }
+            // Nestao item (brisanje/spoljašnja promjena) dok traje rename —
+            // skini polje, inače bi Return bio zauvijek tih.
+            .onChange(of: files) { _, new in
+                if let id = renamingID, !new.contains(where: { $0.id == id }) { renamingID = nil }
             }
             } // ScrollViewReader
             } // GeometryReader
@@ -320,7 +340,37 @@ struct IconsView: View {
     }
 
     private func promptRename(item: FileItem) {
-        FileRenamePrompt.rename(item, fileOps: fileOps, reload: onReload)
+        pendingRenameURL = item.url
+    }
+
+    // MARK: - Inline rename (bez modalnog alerta)
+
+    private func startRename(item: FileItem) {
+        renamingID = item.id
+    }
+
+    private func startRenameForSelection() {
+        guard renamingID == nil, !isEditingText() else { return }
+        let flat = groups.flatMap(\.items)
+        guard let id = selectedIDs.first,
+              let item = flat.first(where: { $0.id == id }) else { return }
+        startRename(item: item)
+    }
+
+    /// Finish je zvan i sa Submit (Return) i sa gubitkom fokusa (klik bilo
+    /// gdje) — `renamingID` ga zaključa da dvaput ne pošalje isti rename.
+    private func finishRename(id: String?, text: String) {
+        guard let id, id == renamingID else { return }
+        renamingID = nil
+        guard let item = files.first(where: { $0.id == id }) else { return }
+        let name = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name != item.name else { return }
+            FFRecentRename.commit()
+        fileOps.rename(item.url, to: name, reload: onReload)
+    }
+
+    private func cancelRename() {
+        renamingID = nil
     }
 
     private func showGetInfo(for items: [FileItem]) {
@@ -337,10 +387,16 @@ struct IconCell: View {
     /// Verzija Workspace store-a (§13): bedž se čita u `body`, a ovo polje
     /// tjera preslikavanje kad task/review/expiry/share stigne.
     var workspaceVersion: UInt = 0
+    /// Inline rename: umesto modala ime postaje polje u samoj ćeliji.
+    var isRenaming: Bool = false
+    var onRenameFinish: ((String) -> Void)? = nil
+    var onRenameCancel: (() -> Void)? = nil
     /// Git status bedž (M/A/D/?/!): ćelija posmatra GitService direktno —
     /// `.equatable()` gasi samo parent-driven update-e (isto kao GroupedRow).
     @ObservedObject var git = GitService.shared
     @State private var hovering = false
+    @State private var renameText: String = ""
+    @FocusState private var renameFocused: Bool
     @Environment(\.ffCompactRows) private var compact
     var body: some View {
         // Bedž se računa ovde, ne u roditelju: roditelj instancira svih N
@@ -367,13 +423,17 @@ struct IconCell: View {
             // prije se lomilo gdje stigne pa je „interview.mp3" bio
             // „interview.mp" + „3". Bez dodatnog horizontalnog paddinga ima
             // ~8 pt više širine, taman da kratka imena stanu u jedan red.
-            Text(item.name)
-                .font(.system(size: 11, weight: isSelected ? .medium : .regular))
-                .lineLimit(2)
-                .truncationMode(.middle)
-                .multilineTextAlignment(.center)
-                .foregroundStyle(isSelected ? .white : .primary)
-                .help(item.name)
+            if isRenaming {
+                renameField
+            } else {
+                Text(item.name)
+                    .font(.system(size: 11, weight: isSelected ? .medium : .regular))
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(isSelected ? .white : .primary)
+                    .help(item.name)
+            }
             if let wsBadge {
                 WorkspaceBadgeView(badge: wsBadge)
             }
@@ -390,6 +450,34 @@ struct IconCell: View {
         )
         .shadow(color: isSelected ? Color.accentColor.opacity(0.25) : Color.clear, radius: 6, y: 2)
         .onHover { hovering = $0 }
+        .onChange(of: isRenaming) { _, renaming in
+            guard renaming else { return }
+            renameText = item.name
+            renameFocused = true
+            // Selektuj stem bez ekstenzije (kao Finder) nakon što fokus stigne.
+            ffSelectStem(name: item.name, isDirectory: item.isDirectory)
+        }
+    }
+
+    /// Inline rename polje — isti stil kao grouped list red, samo centrirano
+    /// da stane u ćeliju mreže.
+    private var renameField: some View {
+        TextField("", text: $renameText)
+            .textFieldStyle(.plain)
+            .font(.system(size: 11, weight: .medium))
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 2)
+            .background(Color(nsColor: .textBackgroundColor), in: FFTheme.controlShape)
+            .overlay(FFTheme.controlShape.strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1))
+            .focused($renameFocused)
+            .onSubmit { onRenameFinish?(renameText) }
+            .onExitCommand { onRenameCancel?() }
+            // Klik bilo gdje van polja gubi fokus → rename se potvrđuje
+            // (isto ponašanje kao grouped lista).
+            .onChange(of: renameFocused) { _, focused in
+                if !focused { onRenameFinish?(renameText) }
+            }
     }
 }
 
@@ -400,5 +488,6 @@ extension IconCell: Equatable {
         lhs.item == rhs.item && lhs.iconSize == rhs.iconSize && lhs.isSelected == rhs.isSelected
             && lhs.driveVersion == rhs.driveVersion
             && lhs.workspaceVersion == rhs.workspaceVersion
+            && lhs.isRenaming == rhs.isRenaming
     }
 }

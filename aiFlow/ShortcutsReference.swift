@@ -37,6 +37,8 @@ enum KeyboardShortcuts {
             ShortcutEntry(title: "Undo / Redo", keys: "⌘Z / ⇧⌘Z"),
             ShortcutEntry(title: "Copy / Cut / Paste", keys: "⌘C / ⌘X / ⌘V"),
             ShortcutEntry(title: "Duplicate", keys: "⌘D"),
+            ShortcutEntry(title: "Rename selection", keys: "Return"),
+            ShortcutEntry(title: "Move to Folder…", keys: "⇧⌘V"),
             ShortcutEntry(title: "Copy path", keys: "⌥⌘C"),
             ShortcutEntry(title: "Select all", keys: "⌘A"),
         ]),

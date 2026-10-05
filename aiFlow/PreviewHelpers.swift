@@ -132,9 +132,43 @@ struct FolderErrorBanner: View {
 // panel so empty folders, folder selections and archives all get a proper
 // first-class presentation instead of a blank panel.
 
-/// App-modal rename prompt used by views without inline rename (Icons,
-/// Columns search results, SelectionActionBar fallback). List keeps inline
-/// rename via pendingRenameURL.
+/// Inline rename (Icons/Columns): after the field takes focus, select the
+/// name WITHOUT its extension, like Finder — typing then replaces the stem
+/// and keeps "report.pdf" a PDF. SwiftUI has no API for the selection range,
+/// so this reaches into the field editor (the window's current editor).
+/// Tries twice: focus lands one run-loop turn after `renameFocused = true`.
+func ffSelectStem(name: String, isDirectory: Bool) {
+    func attempt(_ remaining: Int) {
+        if let win = NSApp.keyWindow,
+           let editor = (win.firstResponder as? NSTextView)
+                ?? (win.fieldEditor(false, for: nil) as? NSTextView) {
+            let n = name as NSString
+            let ext = n.pathExtension
+            let stem = (isDirectory || ext.isEmpty) ? n.length : n.length - ext.count - 1
+            editor.selectedRange = NSRange(location: 0, length: max(0, stem))
+            return
+        }
+        guard remaining > 0 else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { attempt(remaining - 1) }
+    }
+    DispatchQueue.main.async { attempt(3) }
+}
+
+/// Inline-rename commit i Return su u trci: Return koji zatvara polje stiže i
+/// kao key-equivalent skrivenog dugmeta u ContentView, koje bi 30 ms kasnije
+/// ponovo otvorilo rename preko zastarjelog itema (stari path → "no-row" i
+/// zaglavljen `renamingID`). `commit()` na svakom stvarnom commitu, a
+/// `renameRequest` kratko odbija zahtjeve dok je svježe.
+@MainActor
+enum FFRecentRename {
+    private static var lastCommit = Date.distantPast
+    static func commit() { lastCommit = Date() }
+    static var fresh: Bool { Date().timeIntervalSince(lastCommit) < 0.6 }
+}
+
+/// App-modal rename prompt — kept only as a fallback for surfaces that cannot
+/// host an inline field (search results inside Columns). List/Icons/Columns
+/// rows rename inline via `pendingRenameURL`.
 enum FileRenamePrompt {
     static func rename(_ item: FileItem, fileOps: FileOperationsService, reload: @escaping () -> Void) {
         let alert = NSAlert()

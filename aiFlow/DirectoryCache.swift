@@ -55,7 +55,12 @@ final class DirectoryCache {
     // FileItem snapshot cache: instant paint without any disk I/O.
     // Sort/group prefs are re-applied on read, so cached snapshots stay valid
     // across sort changes. Background refresh overwrites within ~100ms.
-    private var itemStore: [String: (items: [FileItem], timestamp: Date, lastAccess: Date)] = [:]
+    //
+    // `stamp` je mtime foldera snimljen u trenutku listanja. Puzanje po
+    // keširanom folderu (Back/Forward, tabovi, sidebar) je skupilo po jedan
+    // PUNI fresh prolaz kroz disk; jedan `stat()` (~0.02 ms) umesto toga
+    // odlučuje da li je folder uopšte promenjen (vidi `needsRevalidation`).
+    private var itemStore: [String: (items: [FileItem], stamp: Stamp?, timestamp: Date, lastAccess: Date)] = [:]
 
     private func key(for directory: URL, showHidden: Bool) -> String {
         "\(directory.path)#hidden=\(showHidden ? 1 : 0)"
@@ -164,7 +169,36 @@ final class DirectoryCache {
         return e.items
     }
 
+    /// Da li keširani snimak stvarno traži ponovno čitanje foldera.
+    ///
+    /// Puna revalidacija (nova enumeracija + metadata za sve stavke) na svakom
+    /// ulasku u keširani folder bila je 150–330 ms za folder od 8k stavki, pa
+    /// je skakanje Downloads → Desktop → Documents vodilo tri teška prolaza
+    /// kroz disk za jedan klikni red. Sada: jedan `stat()` (~0.02 ms) poruke
+    /// `mtime` foldera; ako se nije promenio, nema čega osvježavati.
+    ///
+    /// Vraća true kada snapshot ne postoji, kad je stariji od `maxAge`
+    /// (mrežna sigurnost za izmjene u mjestu koje ne diraju mtime foldera),
+    /// kad je folder nedostupan, i kad je bio izmenjen u trenutku listanja
+    /// (1-sekundska granularnost mtime-a ne može razlikovati promjenu u tom
+    /// prozoru — isto pravilo kao u `isCurrent`).
+    func needsRevalidation(for directory: URL, showHidden: Bool,
+                           maxAge: TimeInterval = 10) -> Bool {
+        lock.lock()
+        let entry = itemStore[key(for: directory, showHidden: showHidden)]
+        lock.unlock()
+        guard let entry else { return true }
+        if Date().timeIntervalSince(entry.timestamp) >= maxAge { return true }
+        guard let listed = entry.stamp, let now = Stamp.of(directory) else { return true }
+        guard now == listed else { return true }
+        return entry.timestamp.timeIntervalSince(listed.date) < 2
+    }
+
     func storeItems(_ items: [FileItem], for directory: URL, showHidden: Bool) {
+        // Stamp čitamo ovdje (posle listanja): mtime foldera u tom trenutku
+        // je tačka sa koje `needsRevalidation` provjerava da li je nešto
+        // dodano/obrisano/preimenovano. Sam `stat` je jeftin.
+        let stamp = Stamp.of(directory)
         lock.lock(); defer { lock.unlock() }
         let k = key(for: directory, showHidden: showHidden)
         // Drop the old snapshot first so eviction below never has to skip it.
@@ -179,7 +213,7 @@ final class DirectoryCache {
             itemStore.removeValue(forKey: oldest.key)
         }
         let now = Date()
-        itemStore[k] = (items, now, now)
+        itemStore[k] = (items, stamp, now, now)
         totalItemCount += items.count
     }
 
@@ -200,31 +234,52 @@ final class DirectoryCache {
     /// URL list instead of re-enumerating the parent directory.
     /// Coalesced: at most one prefetch flight per directory per TTL window,
     /// skipped on network volumes and capped by item count to bound I/O.
-    /// Debounced (0.35s) + serial I/O: brzo klikanje Back/Forward pre je
-    /// slagalo po jedan konkurentni prefetch po svakom folderu (N foldera × 8
-    /// subfoldera uporedo na globalnom redu) koji se takmičio sa stvarnim
-    /// loadovima za disk. Sada se čeka da se korisnik zaustavi — samo zadnji
-    /// folder se greje — i to serijski, nikad uporedo sa samim sobom.
+    /// Debounced + serial I/O: brzo klikanje Back/Forward pre je slagalo po
+    /// jedan konkurentni prefetch po svakom folderu (N foldera × 8 subfoldera
+    /// uporedo na globalnom redu) koji se takmičio sa stvarnim loadovima za
+    /// disk. Sada se čeka da se korisnik zaustavi — samo zadnji folder se
+    /// greje — i to serijski, nikad uporedo sa samim sobom.
+    ///
+    /// Idle delay je 0,9 s (P2 u `docs/folder-open-performance-review.md`):
+    /// 0,35 s je kraće od razmišljanja između klikova, pa se grejalo i kad
+    /// je korisnik već otišao drugde. Limit je 4 podfoldera — grejanje svih 8
+    /// je trošilo disk za foldere koje korisnik najverovatnije neće otvoriti.
+    /// Svaki novi folder dodatno prekida i odloženi rad i prolaz koji još
+    /// radi za prethodni: prefetch nikad ne stiže iza klika korisnika.
+    private static let prefetchIdleDelay: Double = 0.9
     private var prefetchInFlight: Set<String> = []
     private let prefetchQueue = DispatchQueue(label: "FinderFlow.prefetch", qos: .background)
     private var pendingPrefetch: DispatchWorkItem?
-    func prefetchSubfolders(of directory: URL, showHidden: Bool, limit: Int = 8) {
+    private var prefetchEpoch: Int = 0
+    private var lastScheduledPrefetchPath: String = ""
+    func prefetchSubfolders(of directory: URL, showHidden: Bool, limit: Int = 4) {
         lock.lock()
         pendingPrefetch?.cancel()
+        pendingPrefetch = nil
+        var epochBumped = false
+        if directory.path != lastScheduledPrefetchPath {
+            // Drugačiji folder = korisnik navigirao: stari prolaz prekidamo,
+            // ne samo one koji još čekaju.
+            prefetchEpoch &+= 1
+            lastScheduledPrefetchPath = directory.path
+            epochBumped = true
+        }
+        let epoch = prefetchEpoch
         var work: DispatchWorkItem!
         work = DispatchWorkItem { [weak self] in
             guard !work.isCancelled else { return }
-            self?.runPrefetch(of: directory, showHidden: showHidden, limit: limit)
+            self?.runPrefetch(of: directory, showHidden: showHidden, limit: limit, epoch: epoch)
         }
         pendingPrefetch = work
         lock.unlock()
-        prefetchQueue.asyncAfter(deadline: .now() + 0.35, execute: work)
+        ffTracePrefetch(epochBumped ? "reschedule \(directory.lastPathComponent)" : "reschedule-same")
+        prefetchQueue.asyncAfter(deadline: .now() + Self.prefetchIdleDelay, execute: work)
     }
 
-    private func runPrefetch(of directory: URL, showHidden: Bool, limit: Int) {
+    private func runPrefetch(of directory: URL, showHidden: Bool, limit: Int, epoch: Int) {
         let k = key(for: directory, showHidden: showHidden)
         lock.lock()
-        guard !prefetchInFlight.contains(k) else { lock.unlock(); return }
+        guard epoch == prefetchEpoch, !prefetchInFlight.contains(k) else { lock.unlock(); return }
         prefetchInFlight.insert(k)
         lock.unlock()
         // Cap total work: huge folders already cost enough to list.
@@ -252,8 +307,13 @@ final class DirectoryCache {
             return
         }
         var warmed = 0
+        var aborted = false
         for u in urls {
             if warmed >= limit { break }
+            // Prekid usred prolaza: korisnik je u međuvremenu otišao drugde,
+            // pa dalje grejanje diska samo otežava njegov klik.
+            lock.lock(); let alive = epoch == prefetchEpoch; lock.unlock()
+            if !alive { aborted = true; break }
             guard let v = try? u.resourceValues(forKeys: [.isDirectoryKey]),
                   v.isDirectory == true else { continue }
             if peekURLs(for: u, showHidden: showHidden) != nil { continue }
@@ -266,5 +326,18 @@ final class DirectoryCache {
             }
         }
         lock.lock(); prefetchInFlight.remove(k); lock.unlock()
+        ffTracePrefetch(aborted ? "aborted \(directory.lastPathComponent)"
+                                : "warmed \(warmed) \(directory.lastPathComponent)")
     }
+}
+
+/// Instrumentacija prefetch-a: ista `FF_GIT_TRACE` datoteka kao
+/// `ffTraceReload` / `ffTracePublish` u ContentView, bez ijednog reda I/O-a
+/// kad varijabla nije postavljena.
+func ffTracePrefetch(_ what: String) {
+    guard let p = ProcessInfo.processInfo.environment["FF_GIT_TRACE"],
+          let fh = FileHandle(forWritingAtPath: p) else { return }
+    fh.seekToEndOfFile()
+    fh.write(Data("\(Date().timeIntervalSince1970)\tprefetch\t\(what)\n".utf8))
+    try? fh.close()
 }

@@ -273,6 +273,14 @@ struct FinderFlowCommands: Commands {
             }
             .keyboardShortcut("i", modifiers: .command)
             Divider()
+            Button("Move to Folder…") {
+                NotificationCenter.default.post(name: .ffMoveToFolder, object: nil)
+            }
+            .keyboardShortcut("v", modifiers: [.command, .shift])
+            Button("Copy to Folder…") {
+                NotificationCenter.default.post(name: .ffCopyToFolder, object: nil)
+            }
+            Divider()
             Button("Send via Mail…") {
                 NotificationCenter.default.post(name: .ffSendViaMail, object: nil)
             }
@@ -466,6 +474,10 @@ extension Notification.Name {
     static let ffGoForward       = Notification.Name("FF.goForward")
     static let ffGoUp            = Notification.Name("FF.goUp")
     static let ffGoToFolder      = Notification.Name("FF.goToFolder")
+    /// Move/Copy to Folder… — selektovane fajlove šalje u panel umesto da
+    /// korisnik ručno cut → navigacija → paste (klik-više i brže).
+    static let ffMoveToFolder    = Notification.Name("FF.moveToFolder")
+    static let ffCopyToFolder    = Notification.Name("FF.copyToFolder")
     static let ffRefresh         = Notification.Name("FF.refresh")
     static let ffAIOrganize      = Notification.Name("FF.aiOrganize")
     static let ffGitDiffCurrent    = Notification.Name("FF.gitDiffCurrent")

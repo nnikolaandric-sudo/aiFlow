@@ -9,6 +9,9 @@ private let kPreviewWidth:    CGFloat = 260
 
 struct ColumnsView: View {
     @Binding var currentPath: URL
+    /// Zajednički rename ulaz (List/Icons/Columns) — ContentView upisuje,
+    /// kolona koja ima taj item troši i drži inline polje.
+    @Binding var pendingRenameURL: URL?
     let showHidden:     Bool
     let showColumnTree: Bool
     let groupBy:        GroupBy
@@ -42,6 +45,8 @@ struct ColumnsView: View {
     @State private var columns:         [URL]          = []
     @State private var colWidths:       [Int: CGFloat] = [:]
     @State private var selectedFileURL: URL?
+    /// Rename koji čeka kolonu koja sadrži taj item (vidi ColumnPane).
+    @State private var renamingURL:     URL?
     /// Preview column width, remembered across launches
     /// ("ffColumnsPreviewWidth"). Dragging changes @State; the value is written
     /// to settings only when the handle is released.
@@ -52,13 +57,30 @@ struct ColumnsView: View {
     }
 
     var body: some View {
-        if isSearchActive {
-            searchResultsView
-                .background(quickLookButton)
-        } else {
-            columnBrowserView
-                .background(quickLookButton)
-                .background(goUpButton)
+        Group {
+            if isSearchActive {
+                searchResultsView
+                    .background(quickLookButton)
+            } else {
+                columnBrowserView
+                    .background(quickLookButton)
+                    .background(goUpButton)
+            }
+        }
+        // Rename izvan view-a (toolbar, ⌘K paleta, context meni). Kolona koja
+        // zaista sadrži item troši ga (vidi ColumnPane) — doktor jedan.
+        .onChange(of: pendingRenameURL) { _, url in
+            pendingRenameURL = nil
+            guard let url else { return }
+            if isSearchActive {
+                if let item = searchResults.first(where: { $0.url.path == url.path }) {
+                    FileRenamePrompt.rename(item, fileOps: fileOps) {
+                        NotificationCenter.default.post(name: .refreshDirectory, object: currentPath)
+                    }
+                }
+            } else {
+                renamingURL = url
+            }
         }
     }
 
@@ -300,6 +322,7 @@ struct ColumnsView: View {
         ColumnPane(
             directory:      dir,
             highlightedURL: highlighted,
+            renamingURL:    $renamingURL,
             showHidden:     showHidden,
             groupBy:        groupBy,
             sortField:      sortField,
@@ -808,6 +831,10 @@ final class _ResizeHandleNSView: NSView {
 struct ColumnPane: View {
     let directory:      URL
     let highlightedURL: URL?
+    /// Jednokratni rename zahtjev; kolona čije `items` ga sadrže preuzima ga
+    /// i gasi, ostale ga ostavljaju drugima (postoji samo jedna kolona sa
+    /// tim itemom).
+    @Binding var renamingURL: URL?
     let showHidden:     Bool
     let groupBy:        GroupBy
     let sortField:      SortField
@@ -842,6 +869,9 @@ struct ColumnPane: View {
     @State private var rowActions = ColumnRowActions()
     @State private var reloadGeneration: UInt = 0
     @State private var isLoadingPane: Bool = true
+    /// Stanje inline rename-a u ovoj koloni (vrednost = id itema, kao u
+    /// List/Icons) — redovi ga posmatraju pa se preslika samo pogođeni.
+    @StateObject private var renameState = ColumnRenameState()
     /// Greska citanja foldera (dozvola/nestao/Drive) — umesto laznog "prazno".
     @State private var loadError: FolderReadError? = nil
 
@@ -889,8 +919,16 @@ struct ColumnPane: View {
             reload(refresh: true)
         }
         .onChange(of: highlightedURL) { _, url in highlight.url = url }
-        .onChange(of: directory)  { _, _ in reload(refresh: true) }
+        .onChange(of: directory)  { _, _ in renameState.id = nil; reload(refresh: true) }
         .onChange(of: showHidden) { _, _ in reload(refresh: true) }
+        // Rename zahtjev izvana: preuzima ga kolona čiji listing ga sadrži.
+        .onChange(of: renamingURL) { _, _ in claimPendingRename() }
+        .onChange(of: items) { _, new in
+            claimPendingRename()
+            if let id = renameState.id, !new.contains(where: { $0.id == id }) {
+                renameState.id = nil
+            }
+        }
         // Sizing run je upisao nove veličine u keš — pokupi ih bez reload-a
         // sa diska (samo stat-validirani lookup + re-sort po potrebi).
         .onChange(of: sizesVersion) { _, _ in refreshCachedSizes() }
@@ -962,13 +1000,15 @@ struct ColumnPane: View {
         rowActions.update(fileOps: fileOps, favorites: favorites, directory: directory,
                           onReload: { reload(refresh: true) },
                           onSelect: onSelect, onBrowseInto: onBrowseInto, onOpen: onOpen,
-                          onRename: { promptRename(item: $0) })
+                          onRename: { renameState.id = $0.id },
+                          onRenameFinish: { finishRename(item: $0, text: $1) },
+                          onRenameCancel: { renameState.id = nil })
         // NE umotavati u `.equatable()` — EquatableView unutar `List` spljošti
         // sav sadržaj u JEDAN red (provjereno).
         return List {
             ColumnPaneRows(items: items, groups: groups, grouped: groupBy != .none,
                            listGeneration: reloadGeneration,
-                           highlight: highlight, actions: rowActions,
+                           highlight: highlight, renameState: renameState, actions: rowActions,
                            workspaceVersion: workspaces.version, gitVersion: git.version)
         }
         .listStyle(.plain)
@@ -1065,8 +1105,24 @@ struct ColumnPane: View {
         showGetInfoInFinder([item.url])
     }
 
-    private func promptRename(item: FileItem) {
-        FileRenamePrompt.rename(item, fileOps: fileOps) { reload(refresh: true) }
+    // MARK: - Inline rename
+
+    /// Preuzmi rename zahtjev ako ga ovaj listing sadrži (i ugasi ga da ga
+    /// ne preuzme neka druga kolona).
+    private func claimPendingRename() {
+        guard let url = renamingURL,
+              let item = items.first(where: { $0.url.path == url.path }) else { return }
+        renamingURL = nil
+        renameState.id = item.id
+    }
+
+    private func finishRename(item: FileItem, text: String) {
+        guard renameState.id == item.id else { return }
+        renameState.id = nil
+        let name = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, name != item.name else { return }
+            FFRecentRename.commit()
+        fileOps.rename(item.url, to: name, reload: { reload(refresh: true) })
     }
 }
 
@@ -1085,6 +1141,8 @@ private struct ColumnPaneRows: View {
     /// Mijenja se samo na reload/re-sort — ne na klik.
     let listGeneration: UInt
     let highlight:      ColumnHighlightState
+    /// Koji se red rename-uje — red ga posmatra (vidi ColumnRenameState).
+    let renameState:    ColumnRenameState
     let actions:        ColumnRowActions
     /// Verzija Workspace store-a (§13): red se preslika kad task/review/
     /// expiry/share stigne; bedž se čita u telu reda, ne ovde.
@@ -1112,7 +1170,8 @@ private struct ColumnPaneRows: View {
                       onSpringOpen: actions.onSelect) {
             // Highlight čita sam red iz `highlight` — ovdje ga namjerno nema,
             // da klik ne mijenja ulaze redova.
-            ColumnRow(item: item, highlight: highlight, workspaceVersion: workspaceVersion, gitVersion: gitVersion)
+            ColumnRow(item: item, highlight: highlight, renameState: renameState,
+                      actions: actions, workspaceVersion: workspaceVersion, gitVersion: gitVersion)
                 .equatable()
         }
             .contentShape(Rectangle())
@@ -1157,6 +1216,12 @@ final class ColumnHighlightState: ObservableObject {
     @Published var url: URL?
 }
 
+/// Koji red se rename-uje u ovoj koloni — isti razlog kao highlight: red ga
+/// posmatra, pa samo on prelazi u polje umjesto da se svih N redova preslika.
+final class ColumnRenameState: ObservableObject {
+    @Published var id: String?
+}
+
 /// Akcije reda u referenci (vidi `ColumnPaneRows`).
 final class ColumnRowActions {
     /// Postavlja ih pane prije nego što se ijedan red nacrta (vidi `update`).
@@ -1168,14 +1233,19 @@ final class ColumnRowActions {
     private(set) var onBrowseInto: (URL) -> Void = { _ in }
     private(set) var onOpen: (URL) -> Void = { _ in }
     private(set) var onRename: (FileItem) -> Void = { _ in }
+    private(set) var onRenameFinish: (FileItem, String) -> Void = { _, _ in }
+    private(set) var onRenameCancel: () -> Void = {}
 
     func update(fileOps: FileOperationsService, favorites: FavoritesService, directory: URL,
                 onReload: @escaping () -> Void, onSelect: @escaping (FileItem) -> Void,
                 onBrowseInto: @escaping (URL) -> Void, onOpen: @escaping (URL) -> Void,
-                onRename: @escaping (FileItem) -> Void) {
+                onRename: @escaping (FileItem) -> Void,
+                onRenameFinish: @escaping (FileItem, String) -> Void,
+                onRenameCancel: @escaping () -> Void) {
         self.fileOps = fileOps; self.favorites = favorites; self.directory = directory
         self.onReload = onReload; self.onSelect = onSelect
         self.onBrowseInto = onBrowseInto; self.onOpen = onOpen; self.onRename = onRename
+        self.onRenameFinish = onRenameFinish; self.onRenameCancel = onRenameCancel
     }
 }
 
@@ -1186,24 +1256,35 @@ struct ColumnRow: View {
     /// Posmatra se: klik mijenja samo ovaj objekat, pa se preslikaju redovi
     /// koji se stvarno crtaju, a ne cijeli folder.
     @ObservedObject var highlight: ColumnHighlightState
+    /// Koji se red rename-uje (isti obrasci kao highlight — vidi ColumnPane).
+    @ObservedObject var renameState: ColumnRenameState
+    /// Finish/Cancel pozivi idu preko referenci, ne preko closure-a u ulazu.
+    let actions:        ColumnRowActions
     /// Verzija Workspace store-a (§13): bedž se računa u `body` (samo za
     /// nacrtane redove), a ovo polje tjera preslikavanje kad podaci stignu.
     var workspaceVersion: UInt = 0
     var gitVersion: UInt = 0
     @State private var hovering = false
+    @State private var renameText: String = ""
+    @FocusState private var renameFocused: Bool
     @Environment(\.ffCompactRows) private var compact
 
     var body: some View {
         let isHighlighted = highlight.url == item.url
+        let isRenaming = renameState.id == item.id
         let wsBadge = WorkspaceStore.shared.badge(for: item.url)
         let gitStatus = GitService.shared.badgeStatus(for: item.url)
         return HStack(spacing: 8) {
             FileIconView(item: item, size: 16)
                 .frame(width: 20, height: 20)
-            Text(item.name)
-                .font(.system(size: 12, weight: isHighlighted ? .medium : .regular))
-                .lineLimit(1)
-                .truncationMode(.middle)
+            if isRenaming {
+                renameField
+            } else {
+                Text(item.name)
+                    .font(.system(size: 12, weight: isHighlighted ? .medium : .regular))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
             if let wsBadge {
                 WorkspaceBadgeView(badge: wsBadge)
             }
@@ -1231,6 +1312,30 @@ struct ColumnRow: View {
                 .strokeBorder(Color.accentColor.opacity(isHighlighted ? 0.30 : 0), lineWidth: 1)
         )
         .onHover { hovering = $0 }
+        .onChange(of: isRenaming) { _, renaming in
+            guard renaming else { return }
+            renameText = item.name
+            renameFocused = true
+            ffSelectStem(name: item.name, isDirectory: item.isDirectory)
+        }
+    }
+
+    /// Inline rename u koloni — ime je u istom redu, bez modala.
+    private var renameField: some View {
+        TextField("", text: $renameText)
+            .textFieldStyle(.plain)
+            .font(.system(size: 12, weight: .medium))
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .background(Color(nsColor: .textBackgroundColor), in: FFTheme.controlShape)
+            .overlay(FFTheme.controlShape.strokeBorder(Color.accentColor.opacity(0.55), lineWidth: 1))
+            .focused($renameFocused)
+            .onSubmit { actions.onRenameFinish(item, renameText) }
+            .onExitCommand { actions.onRenameCancel() }
+            // Klik van polja gubi fokus → potvrda (isto kao List/Icons).
+            .onChange(of: renameFocused) { _, focused in
+                if !focused { actions.onRenameFinish(item, renameText) }
+            }
     }
 }
 
@@ -1239,6 +1344,7 @@ extension ColumnRow: Equatable {
     // unchanged when the pane rebuilds on selection change.
     static func == (lhs: ColumnRow, rhs: ColumnRow) -> Bool {
         lhs.item == rhs.item && lhs.highlight === rhs.highlight
+            && lhs.renameState === rhs.renameState
             && lhs.workspaceVersion == rhs.workspaceVersion
             && lhs.gitVersion == rhs.gitVersion
     }

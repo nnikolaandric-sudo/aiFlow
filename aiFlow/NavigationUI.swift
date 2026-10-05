@@ -297,6 +297,271 @@ struct GoToFolderSheet: View {
     }
 }
 
+// MARK: - Move to Folder… / Copy to Folder… (⌘⇧V)
+//
+// Ranije: ⌘X → ručna navigacija → ⌘V (klik-više, i Cut pomera clipboard).
+// Panel naviče česte foldere (pinned/recent/favoriti) + upis putanje sa
+// Tab-kompletiranjem, pa jedan klik radi celu operaciju. Ne dira clipboard —
+// prelazi isti put kao drag&drop (`FileOperationsService.importURLs`), koji
+// već ima undo, cache invalidaciju i osvežavanje drugih panelova.
+
+struct MoveToFolderSheet: View {
+    enum Kind { case move, copy }
+
+    let sources:    [URL]
+    let kind:       Kind
+    let currentPath: URL
+    @Binding var isPresented: Bool
+    let onTransfer: (URL, Bool) -> Void
+
+    @State private var text: String = ""
+    @State private var error: String? = nil
+    @State private var completions: [String] = []
+    @State private var completionTask: Task<Void, Never>?
+    /// Česti ciljevi se stat-uju jednom na otvaranje, ne u svakom body
+    /// renderu (isto pravilo kao pasteboard keš u FileOperationsService).
+    @State private var pickList: [URL] = []
+    @FocusState private var fieldFocused: Bool
+
+    private var verb: String { kind == .move ? "Move" : "Copy" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle().fill(FFTheme.heroGradient).frame(width: 30, height: 30)
+                    Image(systemName: kind == .move ? "folder.badge.gearshape" : "doc.on.doc.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("\(verb) to Folder")
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(label)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer()
+            }
+
+            TextField("/Users/…", text: $text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13, design: .monospaced))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .background(Color(nsColor: .textBackgroundColor))
+                .clipShape(FFTheme.cardShape)
+                .overlay(
+                    FFTheme.cardShape
+                        .stroke(fieldFocused ? Color.accentColor.opacity(0.65) : Color.secondary.opacity(0.25),
+                                lineWidth: fieldFocused ? 1.5 : 1)
+                )
+                .focused($fieldFocused)
+                .onSubmit { commit() }
+                .onChange(of: text) { _, _ in
+                    error = nil
+                    updateCompletions()
+                }
+
+            if !completions.isEmpty {
+                List(completions, id: \.self) { c in
+                    Button { text = c; error = nil; updateCompletions() } label: {
+                        Text(c)
+                    }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, design: .monospaced))
+                }
+                .frame(maxHeight: 110)
+                .clipShape(FFTheme.cardShape)
+                .overlay(FFTheme.cardShape.strokeBorder(Color.secondary.opacity(0.2), lineWidth: 1))
+            }
+
+            if let error {
+                HStack(spacing: 5) {
+                    Image(systemName: "exclamationmark.circle.fill").font(.caption)
+                    Text(error).font(.caption)
+                }
+                .foregroundStyle(.red)
+            }
+
+            Text("Recent and favorite folders")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            ScrollView {
+                VStack(spacing: 3) {
+                    ForEach(pickList, id: \.path) { url in
+                        Button { pick(url) } label: {
+                            HStack(spacing: 8) {
+                                Image(systemName: "folder.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Color.accentColor)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(displayName(url))
+                                        .font(.system(size: 12, weight: .medium))
+                                    Text(url.path)
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                }
+                                Spacer(minLength: 4)
+                                if text == url.path {
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundStyle(Color.accentColor)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(text == url.path
+                                        ? Color.accentColor.opacity(0.12)
+                                        : Color.clear)
+                            .clipShape(FFTheme.cardShape)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+            .frame(maxHeight: 170)
+
+            HStack {
+                Spacer()
+                Button("Cancel") { isPresented = false }
+                    .keyboardShortcut(.escape, modifiers: [])
+                Button(verb) { commit() }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .keyboardShortcut(.return, modifiers: [])
+                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            }
+        }
+        .padding(20)
+        .frame(width: 460)
+        .onAppear {
+            text = currentPath.path
+            pickList = makePicks()
+            fieldFocused = true
+        }
+    }
+
+    private var label: String {
+        sources.count == 1
+            ? "1 item selected — \(sources[0].lastPathComponent)"
+            : "\(sources.count) items selected"
+    }
+
+    /// Česti ciljevi: roditelj, pa pinned/recent/paleta (isti izvori kao
+    /// Go to Folder), pa sistemski folderi. Deduplikovano po putanji.
+    private func makePicks() -> [URL] {
+        let fm = FileManager.default
+        var urls: [URL] = [currentPath.deletingLastPathComponent()]
+        urls.append(contentsOf: (UserDefaults.standard.stringArray(forKey: "pinnedFolders") ?? [])
+            .compactMap { URL(fileURLWithPath: $0) })
+        urls.append(contentsOf: (UserDefaults.standard.stringArray(forKey: "recentFolders") ?? [])
+            .compactMap { URL(fileURLWithPath: $0) })
+        urls.append(contentsOf: [
+            fm.homeDirectoryForCurrentUser,
+            fm.urls(for: .documentDirectory, in: .userDomainMask).first,
+            fm.urls(for: .downloadsDirectory, in: .userDomainMask).first,
+            fm.urls(for: .desktopDirectory, in: .userDomainMask).first,
+        ].compactMap { $0 })
+        var seen = Set<String>()
+        return urls.filter {
+            guard $0.isFileURL else { return false }
+            guard seen.insert($0.path).inserted else { return false }
+            var isDir: ObjCBool = false
+            return FileManager.default.fileExists(atPath: $0.path, isDirectory: &isDir) && isDir.boolValue
+        }
+    }
+
+    private func displayName(_ url: URL) -> String {
+        let name = url.lastPathComponent
+        return name.isEmpty ? "/" : name
+    }
+
+    private func pick(_ url: URL) {
+        text = url.path
+        error = nil
+        updateCompletions()
+    }
+
+    /// Destination pod uslovom da je postojeći, browsable folder; inače nil
+    /// (dugme je onda onesposobljeno).
+    private var destinationURL: URL? {
+        let url = expandedURL(from: text)
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir),
+              isDir.boolValue, FileItem.isBrowsableFolder(url) else { return nil }
+        return url
+    }
+
+    private func commit() {
+        guard let dest = destinationURL else {
+            let url = expandedURL(from: text)
+            var isDir: ObjCBool = false
+            error = !FileManager.default.fileExists(atPath: url.path) ? "Folder not found: \(url.path)"
+                                                                       : "Not a browsable folder."
+            return
+        }
+        onTransfer(dest, kind == .move)
+        isPresented = false
+    }
+
+    private func expandedURL(from raw: String) -> URL {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("~") {
+            s = NSString(string: s).expandingTildeInPath
+        } else if !s.hasPrefix("/") {
+            s = currentPath.appendingPathComponent(s).path
+        }
+        return URL(fileURLWithPath: s).standardizedFileURL
+    }
+
+    /// Isto kao Go to Folder: debounce + off-main enumeracija direktorijuma.
+    private func updateCompletions() {
+        completionTask?.cancel()
+        let raw = text
+        guard !raw.isEmpty else { completions = []; return }
+        completionTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 120_000_000)
+            guard !Task.isCancelled else { return }
+            let expanded = raw.hasPrefix("~") ? NSString(string: raw).expandingTildeInPath : raw
+            let base: String
+            let prefix: String
+            if expanded.hasSuffix("/") {
+                base = expanded
+                prefix = ""
+            } else {
+                base = (expanded as NSString).deletingLastPathComponent
+                prefix = (expanded as NSString).lastPathComponent.lowercased()
+            }
+            let names = await Task.detached(priority: .userInitiated) { () -> [String]? in
+                try? FileManager.default.contentsOfDirectory(atPath: base)
+            }.value
+            guard !Task.isCancelled else { return }
+            guard let names else {
+                if raw == text { completions = [] }
+                return
+            }
+            let matches = names
+                .filter { prefix.isEmpty || $0.lowercased().hasPrefix(prefix) }
+                .sorted()
+                .prefix(8)
+                .map { name -> String in
+                    let full = (base as NSString).appendingPathComponent(name)
+                    var isDir: ObjCBool = false
+                    FileManager.default.fileExists(atPath: full, isDirectory: &isDir)
+                    return isDir.boolValue ? full + "/" : full
+                }
+            guard !Task.isCancelled, raw == text else { return }
+            completions = Array(matches)
+        }
+    }
+}
+
 // MARK: - Row density (Comfortable / Compact)
 //
 // One environment flag, set once in ContentView from @AppStorage, read by row

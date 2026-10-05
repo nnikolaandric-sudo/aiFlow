@@ -380,14 +380,15 @@ struct NativeFileTable: NSViewRepresentable {
         func syncRename(_ id: String?) {
             guard let table else { return }
             guard let id else { return }
-            guard editingID != id, let row = indexByID[id] else { return }
+            if editingID == id { return }
+            guard let row = indexByID[id] else { return }
             editingID = id
             table.scrollRowToVisible(row)
             guard let cell = table.view(atColumn: 0, row: row, makeIfNecessary: true) as? FFNameCell,
                   let field = cell.textField else { editingID = nil; return }
             field.isEditable = true
             field.isSelectable = true
-            table.window?.makeFirstResponder(field)
+            _ = table.window?.makeFirstResponder(field)
             // Select the name without its extension, like Finder.
             if let editor = field.currentEditor() {
                 let name = field.stringValue as NSString

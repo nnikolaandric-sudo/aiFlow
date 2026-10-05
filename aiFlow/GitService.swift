@@ -170,6 +170,29 @@ final class GitService: ObservableObject {
     private var lastFolder: String = ""
     private var refreshWork: DispatchWorkItem?
     private var refreshGeneration: UInt = 0
+    /// Root repo-a → kada je zadnji PUNI status stvarno izračunat.
+    ///
+    /// `git status -uall` je na repo-u kao ~/Documents (2.8k fajlova) trajao
+    /// 183–732 ms, a pokretao se na svaku navigaciju u taj folder — skakanje
+    /// među folderima je zato „kucalo" čak i kad je lista bila keširana.
+    /// Unutar `statusMinInterval` sekundi isti repo se ne računa ponovo.
+    ///
+    /// Svaki repo se pamti ZASEBNO i ulazak u folder koji NIJE repo ne briše
+    /// ništa: uzorak „Downloads → Desktop → Documents" prolazi kroz dva
+    /// foldera bez repo-a prije svakog ulaska u Documents, pa bi jedinstveni
+    /// „posljednji repo" memo tu bio stalno prazan i brama nikad ne bi
+    /// proradila. stage/commit/pull idu preko `refreshNow` i zaobilaze prozor.
+    ///
+    /// Čita se samo pod `lock` (pozivi iz pozadinskog reda, ne maina).
+    private var statusFreshness: [(root: String, at: Date)] = []
+    /// Root repo-a posljednjeg `refresh` zahtjeva ("" = folder bez repo-a).
+    /// Pokrenuti `git status` smije da dođe do kraja ako je NJEGOV repo i
+    /// dalje aktuelan, čak i kad je generacija u međuvremenu otišla dalje:
+    /// jedna navigacija zna napraviti 6–9 `reload()` poziva, a prije je to
+    /// odbacivalo svaki pokrenuti status — pa se memo nikad nije popunio i
+    /// `git status -uall` se izvršavao iznova na svaki klik.
+    private var pendingRootKey: String = ""
+    private static let statusMinInterval: TimeInterval = 5.0
     private let lock = NSLock()
 
     private init() {}
@@ -241,6 +264,37 @@ final class GitService: ObservableObject {
     /// Poziva browser na svaku navigaciju / reload. Debounced 250ms —
     /// brzo stepovanje kroz foldere ne pokreće git lavinu.
     func refresh(for folder: URL) {
+        // Repo koji je upravo provjeren: NE uzimaj generaciju. Generacija se
+        // koristi za odbacivanje zastarjelih rezultata, pa bi je ovdje
+        // podizanje poništilo status koji je upravo objavljen (ili se izvršava),
+        // a sljedeći klik bi opet pokrenuo `git status -uall`. Najjeftiniji
+        // put: ništa ne raditi. `repoRoot` je najviše ~30 stat(2) poziva.
+        if Self.isGitAvailable, let root = repoRoot(for: folder) {
+            let key = root.resolvingSymlinksInPath().path
+            setPendingRoot(key)
+            if isStatusFresh(key) {
+                Self.traceFullStatus(root: key, skipped: true)
+                if let cached = cachedStatus(for: key) {
+                    publish {
+                        $0.repoRoot = cached.root
+                        $0.branch = cached.branch
+                        $0.ahead = cached.ahead
+                        $0.behind = cached.behind
+                        $0.statuses = cached.statuses
+                        $0.branches = cached.branches
+                        $0.isLoading = false
+                        $0.lastError = nil
+                        $0.version &+= 1
+                    }
+                } else {
+                    publish { $0.isLoading = false }
+                }
+                return
+            }
+        } else {
+            setPendingRoot("")
+        }
+        Self.traceRefreshCall(folder: folder)
         refreshWork?.cancel()
         lock.lock()
         refreshGeneration &+= 1
@@ -248,7 +302,7 @@ final class GitService: ObservableObject {
         lock.unlock()
         let target = folder
         let work = DispatchWorkItem { [weak self] in
-            self?.doRefresh(for: target, generation: generation)
+            self?.doRefresh(for: target, generation: generation, forced: false)
         }
         refreshWork = work
         DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.25, execute: work)
@@ -257,12 +311,13 @@ final class GitService: ObservableObject {
     /// Sinhroni refresh bez debounce-a (poslije stage/commit/pull/push).
     func refreshNow(for folder: URL) {
         refreshWork?.cancel()
+        setPendingRoot(Self.isGitAvailable ? (repoRoot(for: folder)?.resolvingSymlinksInPath().path ?? "") : "")
         lock.lock()
         refreshGeneration &+= 1
         let generation = refreshGeneration
         lock.unlock()
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            self?.doRefresh(for: folder, generation: generation)
+            self?.doRefresh(for: folder, generation: generation, forced: true)
         }
     }
 
@@ -272,27 +327,153 @@ final class GitService: ObservableObject {
         return refreshGeneration == generation
     }
 
-    private func doRefresh(for folder: URL, generation: UInt) {
+    /// Zapisuje kada je repo zadnji put izračunat (po jedan unos po repou).
+    private func markStatusChecked(root: String) {
+        lock.lock()
+        defer { lock.unlock() }
+        statusFreshness.removeAll { $0.root == root }
+        statusFreshness.append((root, Date()))
+        if statusFreshness.count > 8 {
+            statusFreshness.removeFirst(statusFreshness.count - 8)
+        }
+    }
+
+    /// Da li je PUNI status za `root` upravo izračunat (za `refresh`, koji
+    /// je odložen i može doći poslije navigacije u isti repo).
+    private func isStatusFresh(_ root: String) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        guard let e = statusFreshness.first(where: { $0.root == root }) else { return false }
+        return Date().timeIntervalSince(e.at) < Self.statusMinInterval
+    }
+
+    /// Zapisuje koji je repo trenutno na ekranu (pozivateljski red).
+    private func setPendingRoot(_ key: String) {
+        lock.lock(); pendingRootKey = key; lock.unlock()
+    }
+
+    private func isRepoStillCurrent(_ key: String) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return pendingRootKey == key
+    }
+
+    /// Zadnji objavljeni status repo-a. Bez njega preskočeni refresh ne bi
+    /// mogao da vrati bedževe: navigacija u folder bez repo-a ih namjerno
+    /// isprazni, pa se na povratku stanje mora ponovo objaviti.
+    private struct RepoStatus {
+        let root: URL
+        let branch: String?
+        let ahead: Int
+        let behind: Int
+        let statuses: [String: GitFileStatus]
+        let branches: [GitBranch]
+    }
+    private var statusCache: [String: RepoStatus] = [:]
+
+    private func cacheStatus(for key: String, root: URL,
+                             parsed: ParsedStatus,
+                             branches: [GitBranch]) {
+        let entry = RepoStatus(root: root, branch: parsed.branch, ahead: parsed.ahead,
+                               behind: parsed.behind, statuses: parsed.statuses,
+                               branches: branches)
+        lock.lock(); defer { lock.unlock() }
+        statusCache[key] = entry
+        // Drži malim: izbaci repo koji više nije u freshness memo-u.
+        if statusCache.count > 8 {
+            let live = Set(statusFreshness.map(\.root))
+            for k in statusCache.keys where !live.contains(k) {
+                statusCache.removeValue(forKey: k)
+                if statusCache.count <= 8 { break }
+            }
+        }
+    }
+
+    private func cachedStatus(for key: String) -> RepoStatus? {
+        lock.lock(); defer { lock.unlock() }
+        return statusCache[key]
+    }
+
+    /// Tačan broj `git status -uall` poziva (za perf harness).
+    ///
+    /// Brojanje preko `pgrep` je promašivalo kratke procese, pa je
+    /// „skakanje po folderima" bilo nemoguće izmjeriti pouzdano. Brojač se
+    /// aktivira SAMO kad je `FF_GIT_TRACE` postavljen na putanju fajla
+    /// (launchctl setenv); bez te varijable nema ni reda I/O-a.
+    private static let tracePath = ProcessInfo.processInfo.environment["FF_GIT_TRACE"]
+    static func traceFullStatus(root: String, skipped: Bool) {
+        trace("full\t\(root)\t\(skipped ? "skipped" : "ran")")
+    }
+
+    static func traceRefreshCall(folder: URL) {
+        trace("call\t\(folder.lastPathComponent)")
+    }
+
+    private static func trace(_ line: String) {
+        guard let path = tracePath else { return }
+        guard let fh = FileHandle(forWritingAtPath: path) else { return }
+        fh.seekToEndOfFile()
+        fh.write(Data("\(Date().timeIntervalSince1970)\t\(line)\n".utf8))
+        try? fh.close()
+    }
+
+    private func doRefresh(for folder: URL, generation: UInt, forced: Bool) {
         guard isCurrentRefresh(generation) else { return }
         guard Self.isGitAvailable else {
             publishIfCurrent(generation) { $0.repoRoot = nil; $0.lastError = "Git nije instaliran." }
             return
         }
         guard let root = repoRoot(for: folder) else {
+            // Folder nije u repou: NE briši memo drugih repo-ova. Uzorak
+            // „Downloads → Desktop → Documents" prolazi kroz dva foldera bez
+            // repo-a prije svakog ulaska u Documents; jedinstveni „posljednji
+            // repo" bi se tu stalno brisao i brama nikad ne bi proradila.
             publishIfCurrent(generation) {
                 $0.repoRoot = nil; $0.branch = nil
-            $0.statuses = [:]
-            $0.branches = []
-            $0.ahead = 0; $0.behind = 0; $0.lastError = nil
-            $0.version &+= 1
+                $0.statuses = [:]
+                $0.branches = []
+                $0.ahead = 0; $0.behind = 0; $0.lastError = nil
+                $0.version &+= 1
             }
             return
         }
+        // Preskočiti `git status`: isti repo, nedavno računat. Stanje se
+        // ponovo objavljuje iz keša (mora — navigacija van repo-a je u
+        // međuvremenu ispraznila bedževe), ali bez čitanja diska: upravo
+        // zato se ne podiže generacija, pa nema ni odbacivanja rada koji
+        // je eventualno još u toku.
+        let rootKey = root.resolvingSymlinksInPath().path
+        if !forced, isStatusFresh(rootKey) {
+            Self.traceFullStatus(root: rootKey, skipped: true)
+            if let cached = cachedStatus(for: rootKey) {
+                publish {
+                    $0.repoRoot = cached.root
+                    $0.branch = cached.branch
+                    $0.ahead = cached.ahead
+                    $0.behind = cached.behind
+                    $0.statuses = cached.statuses
+                    $0.branches = cached.branches
+                    $0.isLoading = false
+                    $0.lastError = nil
+                    $0.version &+= 1
+                }
+            } else {
+                publish { $0.isLoading = false }
+            }
+            lock.lock(); lastFolder = folder.path; lock.unlock()
+            return
+        }
+        Self.traceFullStatus(root: rootKey, skipped: false)
         publishIfCurrent(generation) { $0.isLoading = true }
         let (porcelain, code) = Self.runGit(in: root, args: ["status", "--porcelain=v1", "-uall", "-b", "-z"])
-        guard isCurrentRefresh(generation) else { return }
+        // Rezultat NE odbacujemo samo zato što je generacija otišla dalje —
+        // važno je da li je NJEGOV repo i dalje onaj na ekranu. Generacija se
+        // u međuvremenu mijenja jer jedna navigacija zna napraviti 6–9
+        // `reload()` poziva; prije je to bacalo svaki pokrenuti status u
+        // smeće, pa se git izvršavao iznova na svaki klik.
+        guard forced || isRepoStillCurrent(rootKey) else { return }
+        markStatusChecked(root: rootKey)
         guard code == 0 else {
-            publishIfCurrent(generation) {
+            publish {
                 $0.repoRoot = root
                 $0.branch = nil
                 $0.statuses = [:]
@@ -306,7 +487,8 @@ final class GitService: ObservableObject {
         }
         let parsed = Self.parseStatus(porcelain, root: root)
         let branchList = Self.parseBranches(in: root)
-        publishIfCurrent(generation) {
+        cacheStatus(for: rootKey, root: root, parsed: parsed, branches: branchList)
+        publish {
             $0.repoRoot = root
             $0.branch = parsed.branch
             $0.ahead = parsed.ahead

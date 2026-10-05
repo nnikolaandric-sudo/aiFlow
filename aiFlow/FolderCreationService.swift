@@ -1050,6 +1050,7 @@ class FileOperationsService: NSObject, ObservableObject {
         case trash(URL)
         case makeDir(URL)          // create an empty folder
         case removeEmptyDir(URL)   // remove a folder only while it is still empty
+        case removeCreatedFolder(URL)   // undo of create: empty → delete, filled → Trash
     }
 
     /// Performs `step` and returns the step that reverts it — nil when it can't
@@ -1077,7 +1078,32 @@ class FileOperationsService: NSObject, ObservableObject {
                   contents.allSatisfy({ $0 == ".DS_Store" }) else { return nil }
             try fm.removeItem(at: url)
             return .makeDir(url)
+        case .removeCreatedFolder(let url):
+            // Undo of New Folder: still empty (or only .DS_Store) → just delete
+            // it; anything landed in it meanwhile → the whole folder goes to the
+            // Trash instead (never a hard delete, nothing the user made is lost).
+            guard isPlainFolder(url) else { return nil }
+            let contents = (try? fm.contentsOfDirectory(atPath: url.path)) ?? []
+            if contents.allSatisfy({ $0 == ".DS_Store" }) {
+                try fm.removeItem(at: url)
+                return .makeDir(url)
+            }
+            var trashed: NSURL?
+            try fm.trashItem(at: url, resultingItemURL: &trashed)
+            return (trashed as URL?).map { FileStep.move($0, url) }
         }
+    }
+
+    /// Undo za upravo kreiran item (⇧⌘N / ⌥⌘N) — kreiranje ga do sada nije
+    /// registrovalo, pa bi ⌘Z preskočio New Folder/New File. Prati isti put kao
+    /// i druge operacije: prazan folder se uklanja, pun ide u Trash, fajl u Trash.
+    func registerCreateUndo(_ url: URL, reload: @escaping () -> Void) {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir),
+              !isDir.boolValue || isPlainFolder(url) else { return }
+        let step: FileStep = isDir.boolValue ? .removeCreatedFolder(url) : .trash(url)
+        registerUndo(isDir.boolValue ? "New Folder" : "New File",
+                     inverse: [step], reload: reload)
     }
 
     /// Puts `inverse` on the undo stack. Replaying it registers its own inverse
@@ -1141,7 +1167,7 @@ class FileOperationsService: NSObject, ObservableObject {
             return [from.deletingLastPathComponent().path, to.deletingLastPathComponent().path]
         case .trash(let url):
             return [url.deletingLastPathComponent().path]
-        case .makeDir(let url), .removeEmptyDir(let url):
+        case .makeDir(let url), .removeEmptyDir(let url), .removeCreatedFolder(let url):
             return [url.deletingLastPathComponent().path, url.path]
         }
     }

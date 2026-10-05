@@ -299,6 +299,19 @@ struct FileContextMenuContent: View {
         }
         .disabled(fileOps.pasteboardURLs.isEmpty)
         Divider()
+        // Move/Copy to Folder… — panel sa destinacijom umesto cut/copy →
+        // navigacija → paste (isto kao File meni, sa istim obaveštenjem).
+        Button {
+            NotificationCenter.default.post(name: .ffMoveToFolder, object: urls)
+        } label: {
+            Label("Move to Folder…", systemImage: "folder.badge.gearshape")
+        }
+        Button {
+            NotificationCenter.default.post(name: .ffCopyToFolder, object: urls)
+        } label: {
+            Label("Copy to Folder…", systemImage: "doc.on.doc.fill")
+        }
+        Divider()
         Menu {
             Button {
                 Task { await SecureShareManager.shared.quickLink(for: urls) }

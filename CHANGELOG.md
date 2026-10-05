@@ -5,6 +5,45 @@ relative to the 1.0 release.
 
 ---
 
+## Unreleased — fewer clicks in everyday file work
+
+Renaming, creating and moving files happen where the files already are —
+inline, instead of in a dialog that interrupts the flow.
+
+### Rename in every view, straight from the keyboard
+
+- **Return renames the selection** in List, Icons and Columns. The table
+  already did this when it had focus; the grid views had no keyboard entry
+  at all, and Rename lived only behind the right-click menu.
+- The name appears **inline on the item** (field editor over the row, name
+  without the extension selected), Escape cancels, Return and clicking
+  away commit — the same rules everywhere. The old modal prompt survives in
+  one place only: search results in Columns, whose rows are virtualized.
+
+### New Folder / New Text File create immediately
+
+- ⇧⌘N and ⌥⌘N no longer open a name dialog. The item is created with the
+  placeholder name and drops straight into inline rename, so creating and
+  naming is one uninterrupted flow — the dialog used to cost a click, a
+  focus jump and a Return before anything existed.
+- **Creating is undoable at last.** ⌘Z removes the folder that was just
+  created (or, once something has been put in it, moves the whole folder to
+  the Trash so nothing is lost) and moves a new text file to the Trash.
+  Creation never registered undo before, so ⌘Z silently skipped over it.
+
+### Move to Folder… / Copy to Folder… (⇧⌘V)
+
+- One panel replaces cut/copy → navigate → paste: **recent and favorite
+  folders, a path field with completion, and Move / Copy buttons**. The
+  destination accepts `~`, relative paths and Tab-completion, and the panel
+  refuses folders that can't be browsed into (packages).
+- Reachable from the File menu, the ⌘K palette and the right-click menu
+  (the menu sends exactly the items you right-clicked).
+- It reuses the drag & drop transfer path, so undo, cache invalidation and
+  refresh of the second pane behave exactly like a drop would.
+
+---
+
 ## 2.4.1 (2026-09-25)
 
 Faster again: Version History stops slowing the app down, the stray "?" marks
