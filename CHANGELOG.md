@@ -5,10 +5,22 @@ relative to the 1.0 release.
 
 ---
 
-## Unreleased — fewer clicks in everyday file work
+## 2.5.0 (2026-10-05)
 
-Renaming, creating and moving files happen where the files already are —
-inline, instead of in a dialog that interrupts the flow.
+Fewer clicks in everyday file work — and navigation that answers in
+exactly one window.
+
+### One window answers (no more multi-window fan-out)
+
+- With several browser windows open (macOS restores closed ones), an
+  action used to run once per window: one ⇧⌘N made a folder in every
+  window, and opening a folder jumped all of them there. Commands already
+  answer only in the key window; navigation (reveal, go-to-folder,
+  palette picks, task/reminder sheets) now does too — or the first window
+  to claim it when the request comes from a tool window.
+- Opening a folder on a cold launch could silently do nothing (the request
+  arrived with no window listening yet). It is retried until a window
+  takes it; any real navigation cancels the retries.
 
 ### Rename in every view, straight from the keyboard
 
