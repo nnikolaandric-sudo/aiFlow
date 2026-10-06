@@ -5,6 +5,19 @@ relative to the 1.0 release.
 
 ---
 
+## 2.5.1 (2026-10-06)
+
+Fast switching: one navigation does one pass of work, so stepping quickly
+through favorites no longer lags or flashes stale content.
+
+- The same navigation used to run its full pipeline 2–3 times (extra
+  appear-reload, double-delivered open events, re-published Git data that
+  rebuilt the whole list). Duplicates are now skipped: same-folder events
+  in another URL spelling, shared delivery between the open event and new
+  windows, and Git republishes when nothing changed.
+- Opening a folder reaches exactly one window (verified: one acts, the
+  rest stand down), including cold launches.
+
 ## 2.5.0 (2026-10-05)
 
 Fewer clicks in everyday file work — and navigation that answers in

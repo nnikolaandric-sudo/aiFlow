@@ -192,6 +192,11 @@ final class GitService: ObservableObject {
     /// odbacivalo svaki pokrenuti status — pa se memo nikad nije popunio i
     /// `git status -uall` se izvršavao iznova na svaki klik.
     private var pendingRootKey: String = ""
+    /// Root čije bedževe lista trenutno pokazuje (sve objave idu na main).
+    /// Brzo stepovanje kroz foldere bi inače svaki put ponovo objavilo ISTE
+    /// podatke (didSet na statuses pali rebuildBadges + re-render liste),
+    /// pa sveži memo-put preskače objavu kad se ništa nije promijenilo.
+    private var lastPublishedRoot: String? = nil
     private static let statusMinInterval: TimeInterval = 5.0
     private let lock = NSLock()
 
@@ -274,8 +279,10 @@ final class GitService: ObservableObject {
             setPendingRoot(key)
             if isStatusFresh(key) {
                 Self.traceFullStatus(root: key, skipped: true)
+                guard lastPublishedRoot != key else { return }
                 if let cached = cachedStatus(for: key) {
                     publish {
+                        $0.lastPublishedRoot = key
                         $0.repoRoot = cached.root
                         $0.branch = cached.branch
                         $0.ahead = cached.ahead
@@ -287,7 +294,10 @@ final class GitService: ObservableObject {
                         $0.version &+= 1
                     }
                 } else {
-                    publish { $0.isLoading = false }
+                    publish {
+                        $0.lastPublishedRoot = key
+                        $0.isLoading = false
+                    }
                 }
                 return
             }
@@ -428,6 +438,7 @@ final class GitService: ObservableObject {
             // repo-a prije svakog ulaska u Documents; jedinstveni „posljednji
             // repo" bi se tu stalno brisao i brama nikad ne bi proradila.
             publishIfCurrent(generation) {
+                $0.lastPublishedRoot = nil
                 $0.repoRoot = nil; $0.branch = nil
                 $0.statuses = [:]
                 $0.branches = []
@@ -474,6 +485,7 @@ final class GitService: ObservableObject {
         markStatusChecked(root: rootKey)
         guard code == 0 else {
             publish {
+                $0.lastPublishedRoot = rootKey
                 $0.repoRoot = root
                 $0.branch = nil
                 $0.statuses = [:]
@@ -489,6 +501,7 @@ final class GitService: ObservableObject {
         let branchList = Self.parseBranches(in: root)
         cacheStatus(for: rootKey, root: root, parsed: parsed, branches: branchList)
         publish {
+            $0.lastPublishedRoot = rootKey
             $0.repoRoot = root
             $0.branch = parsed.branch
             $0.ahead = parsed.ahead

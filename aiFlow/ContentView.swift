@@ -467,10 +467,10 @@ struct ContentView: View {
             // written anywhere, so local/recursive searches always skipped
             // hidden files even with Show Hidden Files on.
             searchEngine.showHidden = showHidden
-            reload()
-            GitService.shared.refresh(for: currentPath)
-            if isDualPane { reloadSecondary() }
-            updateManager.checkIfNeeded()
+            // Pending navigacija ispod radi svoj reload preko onChange —
+            // bez preskakanja bi svaki open koštao dva puna prolaza (appear
+            // za stari folder + navigacija za novi, prvi se uvek odbaci).
+            var navigatedViaPending = false
             if !didShowFirstRun {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     showFirstRun = true
@@ -480,15 +480,33 @@ struct ContentView: View {
             // the open request may arrive before this view is listening.
             if let pending = AppDelegate.pendingNavigationURL {
                 AppDelegate.pendingNavigationURL = nil
-                if pending != currentPath { currentPath = pending }
+                // Kanonski ista destinacija ne navigira (URL == bi dvaput
+                // opalio za trailing-slash oblik), a claim deli isporuku sa
+                // postom — inače open odradi i onAppear i receiver.
+                if !ffSamePath(pending, currentPath), FFBrowserWindows.claim(pending) {
+                    currentPath = pending
+                    navigatedViaPending = true
+                }
             }
+            if !navigatedViaPending {
+                reload()
+                GitService.shared.refresh(for: currentPath)
+                if isDualPane { reloadSecondary() }
+            }
+            updateManager.checkIfNeeded()
         }
         // Don't clear the icon cache on every navigation — NSCache evicts under
         // memory pressure automatically; keeping icons warm makes navigation fast.
-        .onChange(of: currentPath)   { _, newPath  in
+        .onChange(of: currentPath)   { oldPath, newPath  in
             // Svaka stvarna navigacija gasi viseći pending (cold-launch retry
             // ispod tada odustaje — bez ovoga bi kasni retry trznuo nazad).
             AppDelegate.pendingNavigationURL = nil
+            // Ista destinacija u drugom URL zapisu (trailing slash, /tmp vs
+            // /private/tmp): post + onAppear-pending znaju stići oba za jedan
+            // open, a SwiftUI poredi sa == pa onChange opali dvaput za isti
+            // folder. Bez ovoga svaka navigacija nosi 2-3 puna pipeline
+            // prolaza (lista se gradi iznova + git + sizing + preview).
+            guard !ffSamePath(oldPath, newPath) else { return }
             // History: user navigations push; back/forward pops set the flag.
             if isHistoryNav {
                 isHistoryNav = false
@@ -770,7 +788,10 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToPath)) { n in
             guard isNavigationTarget else { return }
-            guard let url = n.object as? URL, FFBrowserWindows.claim(url) else { return }
+            guard let url = n.object as? URL else { return }
+            guard FFBrowserWindows.claim(url) else {
+                return
+            }
             AppDelegate.pendingNavigationURL = nil
             if !ffSamePath(url, currentPath) { currentPath = url }
         }
