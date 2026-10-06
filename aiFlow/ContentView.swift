@@ -317,8 +317,18 @@ struct ContentView: View {
                 .resetsCursorOnEnter()           // clears the divider's stuck resize cursor on entry
         } detail: {
             VStack(spacing: 0) {
-                if case .available(let version, _, _, _) = updateManager.phase {
-                    UpdateBanner(manager: updateManager, version: version)
+                Group {
+                    if case .available(let version, _, _, _) = updateManager.phase {
+                        UpdateBanner(manager: updateManager, version: version)
+                    }
+                }
+                // Ručna provera mora da odgovori i kad nema novosti (inače
+                // klik deluje mrtvo): samo key prozor toastuje da se ne
+                // umnožava po prozorima; on i čisti poruku.
+                .onChange(of: updateManager.manualNotice) {
+                    guard isKeyWindowOwner, let n = updateManager.manualNotice else { return }
+                    updateManager.manualNotice = nil
+                    showToast(ActionFeedback(icon: n.icon, message: n.message))
                 }
                 // Tab bar: vidi se samo kad ima 2+ taba (jedan tab je samo
                 // potrosen red — ⌘T i dalje radi, traka se pojavi s drugim tabom).

@@ -26,6 +26,10 @@ final class UpdateManager: ObservableObject {
     }
 
     @Published private(set) var phase: Phase = .idle
+    /// Rezultat RUČNE provere (Check for Updates…): automatske ostaju tihe
+    /// kad je sve ažurno, ali ko eksplicitno pita zaslužuje odgovor — makar
+    /// "up to date" ili razlog neuspeha. View toastuje pa vraća na nil.
+    @Published var manualNotice: UpdateNotice?
 
     private let repoOwner = "nnikolaandric-sudo"
     private let repoName  = "aiFlow"
@@ -62,6 +66,10 @@ final class UpdateManager: ObservableObject {
             let latest  = release.version
             guard isVersion(latest, newerThan: currentVersion) else {
                 phase = .upToDate
+                if force {
+                    manualNotice = UpdateNotice(icon: "checkmark.circle",
+                        message: "aiFlow \(currentVersion) is up to date.")
+                }
                 return
             }
             if !force, UserDefaults.standard.string(forKey: Keys.dismissedVersion) == latest {
@@ -71,6 +79,10 @@ final class UpdateManager: ObservableObject {
             phase = .available(version: latest, notes: release.notes, dmgURL: release.dmgURL, sha256: release.sha256)
         } catch {
             phase = .error(error.localizedDescription)
+            if force {
+                manualNotice = UpdateNotice(icon: "exclamationmark.triangle",
+                    message: error.localizedDescription)
+            }
         }
     }
 
@@ -304,6 +316,12 @@ final class UpdateManager: ObservableObject {
             if va != vb { return va > vb }
         }
         return false
+    }
+
+    struct UpdateNotice: Equatable {
+        let id = UUID()
+        let icon: String
+        let message: String
     }
 
     private enum Keys {
