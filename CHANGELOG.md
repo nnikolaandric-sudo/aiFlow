@@ -5,6 +5,12 @@ relative to the 1.0 release.
 
 ---
 
+## 2.5.2 (2026-10-06)
+
+Check for Updates… now answers: up-to-date and failure states show a
+toast in the key window instead of silence. (Only 2.5.1 is new below
+otherwise.)
+
 ## 2.5.1 (2026-10-06)
 
 Fast switching: one navigation does one pass of work, so stepping quickly
